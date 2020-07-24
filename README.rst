@@ -23,7 +23,7 @@ Authorship Notice
 Structure
 ==========
 
-This repository contains *only* the Optical Flow Calculation Code and none of the Image folders.
+This repository (now) contains both the Code and Input Images to calculate Optical Flow. 
 
 Input Images
 ^^^^^^^^^^^^
@@ -86,7 +86,7 @@ Output from running the ``TestSuite.py`` script will be located in the ``Code/Pa
 Usage
 ======
 
-Assuming you've set up the ``images`` or ``images_video`` folders with Image Collections + Image Frames, calculating the optical flow is quite easy
+Actually calculating the optical flow now is quite easy
 
 You can write any Test Runs you want to execute within the ``Parallel/pyflow/TestSuite.py`` file using the ``TestRun()`` function
 
