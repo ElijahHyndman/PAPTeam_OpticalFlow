@@ -141,6 +141,7 @@ def generateOutputFlowImageFile(outputImagePath,flow, imDimensions):
     rgb = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
     # Write image data to image file
     cv2.imwrite(outputImagePath, rgb)
+
     #print('stored output image at:',outputImagePath)
 
 

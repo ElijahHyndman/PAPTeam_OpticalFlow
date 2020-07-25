@@ -8,6 +8,7 @@ try: # import our own local made modules
 except Exception as e:
      print('*'*3+'Input Creation Modules were not imported: {}'.format(e))
 
+import time
 
 # === Variables to make work easier and customizeable
 CollectionLevels={
@@ -74,4 +75,6 @@ def TestRun(Progression='Default',ImagesPerCollection=3,pyramidLevels=3,threadPr
 
 # === Running Tests
 
-TestRun(Progression='Full',ImagesPerCollection=-1,pyramidLevels=6,threadProgression=(1,2,3,4),Repetitions=1)
+begin=time.perf_counter()
+TestRun(Progression='Heavy',ImagesPerCollection=1,pyramidLevels=6,threadProgression=(2,),Repetitions=1)
+print('Program Execution time: {:.2f}'.format(time.perf_counter()-begin))
