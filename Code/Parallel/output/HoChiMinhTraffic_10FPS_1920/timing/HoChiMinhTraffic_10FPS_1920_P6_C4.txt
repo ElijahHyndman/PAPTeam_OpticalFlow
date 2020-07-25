@@ -1,5 +1,0 @@
-/home/parallels/PAPTeam_ubuntu/OpticalFlow/Code/Parallel/pyflow/output/HoChiMinhTraffic_10FPS_1920/timing/HoChiMinhTraffic_10FPS_1920_P6_C4.txt
-Total C++ Execution,Total Flow Calculation,Total Pyramid Calculation
-24.351901,21.843334,22.527082
-25.079136,22.516631,23.231289
-24.645722,22.126802,22.814972
