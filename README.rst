@@ -105,4 +105,4 @@ If you wish to make edits to the C++ code or pyflow.pyx Cython stuff, you will n
         python3 setup.py build_ext --inplace
 
 :author: Elijah Hyndman
-:Date: July 23 2020
+:Date: July 2020
