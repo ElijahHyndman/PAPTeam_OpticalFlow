@@ -13,6 +13,7 @@
 #include "Vector.h"
 #include "Stochastic.h"
 #include <map>
+#include <omp.h>
 
 //PAP_Team: Global Variables set inside OpticalFlow.cpp
 extern int GLOBAL_nThreads;
@@ -1218,8 +1219,9 @@ void Image<T>::GaussianSmoothing(Image<T1>& image,double sigma,int fsize) const
 	imfilter_hv(image,gFilter,fsize,gFilter,fsize);
 
 	delete[] gFilter;
+
 	double end=timer();
-	GLOBAL_timingMap->insert( make_pair("Gaussian Smoothing",to_string( end-start )) ); 
+	GLOBAL_timingMap->insert( make_pair("Gaussian Smoothing",to_string( end-start )) );
 }
 
 //------------------------------------------------------------------------------------------

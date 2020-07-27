@@ -24,11 +24,6 @@ using namespace std;
 int GLOBAL_nThreads;
 map<string, string>* GLOBAL_timingMap;
 
-double timer()
-{
-	return omp_get_wtime();
-}
-
 //OpticalFlow::InterpolationMethod OpticalFlow::interpolation = OpticalFlow::Bicubic;
 OpticalFlow::InterpolationMethod OpticalFlow::interpolation = OpticalFlow::Bilinear;
 OpticalFlow::NoiseModel OpticalFlow::noiseModel = OpticalFlow::Lap;
@@ -1059,6 +1054,7 @@ void OpticalFlow::Coarse2FineFlow(DImage &vx, DImage &vy, DImage &warpI2,const D
 					and passed back to Python using the TIMING_PROFILE map
 */
 //-------------------------------------------------------
+void myfunc(){cout<<"hello";}
 void OpticalFlow::Coarse2FineFlow(map<string,string>* TIMING_PROFILE, DImage &vx, DImage &vy, DImage &warpI2,const DImage &Im1, const DImage &Im2, int pyramidLevels, int nCores)
 {
 	// Set global number of threads to use with OpenMP

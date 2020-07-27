@@ -1,4 +1,5 @@
 # Author: Deepak Pathak (c) 2016
+# Edited: Elijah Hyndman
 
 from __future__ import absolute_import
 from __future__ import division
@@ -35,6 +36,6 @@ setup(
     version="1.0",
     description="Python wrapper for the Coarse2Fine Optical Flow code.",
     author="Deepak Pathak",
-    ext_modules= cythonize(ext_modules),#cythonize(extensions),
+    ext_modules= cythonize(ext_modules),
     include_dirs=[numpy.get_include()]
 )

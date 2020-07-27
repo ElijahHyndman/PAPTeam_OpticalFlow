@@ -1,5 +1,4 @@
-# Author: Deepak Pathak (c) 2016
-# Edited: Elijah Hyndman 2020
+# Author: Elijah Hyndman 2020
 
 from __future__ import absolute_import
 from __future__ import division
@@ -21,13 +20,14 @@ except Exception as e:
      print('*'*3+'Input Creation Modules were not imported: {}'.format(e))
 
 # Parsing Arguments
+'''
 parser = argparse.ArgumentParser(
     description='Demo for python wrapper of Coarse2Fine Optical Flow')
 parser.add_argument(
     '-viz', dest='viz', action='store_true',
     help='Visualize (i.e. save) output of flow.')
 args = parser.parse_args()
-
+'''
 
 
 '''
@@ -147,53 +147,17 @@ def generateOutputFlowImageFile(outputImagePath,flow, imDimensions):
 
 
 def generateOutputTimingFile(outputFilePath, timingDictionary):
+    # We will write the header first, if the file does not exist yet
     writeHeader= not os.path.exists(outputFilePath)
     f = open(outputFilePath,'a')
     delimiter=','
 
-    # If File does not exist, write in the Header String
     if( writeHeader ):
         HeaderString=delimiter.join( timingDictionary.keys() )
         f.write(outputFilePath+'\n')
         f.write(HeaderString+'\n')
 
+    # Join all of the values in the timingDictionary, delimit with delimiter string
     timingString=delimiter.join( timingDictionary.values() )
     f.write(timingString+'\n')
     f.close()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# Test lines of code to run the functions
-
-'''
-# Create Test Image data
-pairGenerator=TestImagePairGenerator()
-pairGenerator.COLLECTION_KEYS.sort()
-# Output All known Image Collection Names and their indexes + dictionary keys
-print('Collection Names Available:')
-for collection in pairGenerator.COLLECTION_KEYS:
-    collectionIndex=pairGenerator.COLLECTION_KEYS.index(collection)
-    print('Key[{}]:'.format(collectionIndex) +''+collection)
-
-# Choose Image Collection and generate its image pairs
-testCollection=pairGenerator.COLLECTION_DICTIONARY['HoChiMinhTraffic_10FPS_1920']
-testImagePairs=pairGenerator.generateTestImagePairsFromCollection(testCollection.PATH)
-# Run Optical Flow on all image pairs
-i=1
-for TESTPAIR in testImagePairs[:numImages]:
-    print('Calculating Optical Flow For Image [{}/{}]'.format( i,len(testImagePairs) ))
-    CalculateOpticalFlow(TESTPAIR)
-    i+=1
-'''

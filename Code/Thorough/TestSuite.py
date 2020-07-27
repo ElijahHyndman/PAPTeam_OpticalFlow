@@ -1,4 +1,4 @@
-# Author: Elijah Hyndman Date: July 22 2020
+# Author: Elijah Hyndman Date: July 2020
 from OpticalFlowCalculation import *
 try: # import our own local made modules
     from InputCreation.TestImagePairGenerator import TestImagePairGenerator as TestImagePairGenerator
