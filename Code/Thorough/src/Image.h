@@ -12,9 +12,18 @@
 #include <typeinfo>
 #include "Vector.h"
 #include "Stochastic.h"
-//PAP_Team
+#include <map>
 
+//PAP_Team: Global Variables set inside OpticalFlow.cpp
 extern int GLOBAL_nThreads;
+extern map<string,string>* GLOBAL_timingMap;
+
+
+double timer()
+{
+	return omp_get_wtime();
+}
+
 
 #ifndef _MATLAB
 	#include "ImageIO.h"
@@ -1184,14 +1193,14 @@ template <class T>
 template <class T1>
 void Image<T>::GaussianSmoothing(Image<T1>& image,double sigma,int fsize) const
 {
+	double start=timer();
 	Image<T1> foo;
 	// constructing the 1D gaussian filter
 	double* gFilter;
 	gFilter=new double[fsize*2+1];
 	double sum=0;
 	sigma=sigma*sigma*2;
-	cout<<"Computing gaussian with threads num: "<<GLOBAL_nThreads<<endl;
-	#pragma omp parallel
+	#pragma omp parallel num_threads(GLOBAL_nThreads)
 	{
 		#pragma omp for
 		for(int i=-fsize;i<=fsize;i++)
@@ -1209,6 +1218,8 @@ void Image<T>::GaussianSmoothing(Image<T1>& image,double sigma,int fsize) const
 	imfilter_hv(image,gFilter,fsize,gFilter,fsize);
 
 	delete[] gFilter;
+	double end=timer();
+	GLOBAL_timingMap->insert( make_pair("Gaussian Smoothing",to_string( end-start )) ); 
 }
 
 //------------------------------------------------------------------------------------------

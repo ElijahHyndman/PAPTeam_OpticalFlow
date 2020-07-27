@@ -22,6 +22,7 @@ using namespace std;
 
 // PAP global Variable for OpenMP
 int GLOBAL_nThreads;
+map<string, string>* GLOBAL_timingMap;
 
 double timer()
 {
@@ -1061,8 +1062,9 @@ void OpticalFlow::Coarse2FineFlow(DImage &vx, DImage &vy, DImage &warpI2,const D
 void OpticalFlow::Coarse2FineFlow(map<string,string>* TIMING_PROFILE, DImage &vx, DImage &vy, DImage &warpI2,const DImage &Im1, const DImage &Im2, int pyramidLevels, int nCores)
 {
 	// Set global number of threads to use with OpenMP
-	cout << "setting GLOBAL_nThreads" << endl;
+	// ASSERT: Coarse2FineFlow will always execute before Image.h > Global Variables will always be defined
 	GLOBAL_nThreads=nCores;
+	GLOBAL_timingMap=TIMING_PROFILE;
 
 	double TOTAL_BEGIN=timer();
 	// Hardcoded values
@@ -1179,9 +1181,9 @@ void OpticalFlow::Coarse2FineFlow(map<string,string>* TIMING_PROFILE, DImage &vx
 	// === Output: Store the values
 	//TIMING_PROFILE->insert( make_pair("Pyramid Construction",to_string(DURATION_PYRAMID_CONSTRUCTION)) );
 	//TIMING_PROFILE->insert( make_pair("Image Warp",to_string(DURATION_IMAGE_WARP)) );
-	TIMING_PROFILE->insert( make_pair("Total Pyramid Calculation",to_string(DURATION_TOTAL_PYRAMID)) );
-	TIMING_PROFILE->insert( make_pair("Total Flow Calculation",to_string(DURATION_TOTAL_FLOW)) );
-	TIMING_PROFILE->insert( make_pair("Total C++ Execution",to_string(DURATION_TOTAL)) );
+	TIMING_PROFILE->insert( make_pair("Total Pyramid Calculation",to_string( DURATION_TOTAL_PYRAMID )) );
+	TIMING_PROFILE->insert( make_pair("Total Flow Calculation",to_string( DURATION_TOTAL_FLOW )) );
+	TIMING_PROFILE->insert( make_pair("Total C++ Execution",to_string( DURATION_TOTAL )) );
 }
 //-------------------------
 // End PAP_Team optical flow call
