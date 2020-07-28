@@ -9,10 +9,12 @@
             "src/Coarse2FineFlowWrapper.h"
         ],
         "extra_compile_args": [
-            "-fopenmp"
+            "-fopenmp",
+            "-O3"
         ],
         "extra_link_args": [
-            "-fopenmp"
+            "-fopenmp",
+            "-O3"
         ],
         "include_dirs": [
             ".",
