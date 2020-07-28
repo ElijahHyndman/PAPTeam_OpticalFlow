@@ -227,7 +227,7 @@ void OpticalFlow::genInImageMask(DImage &mask, const DImage &flow,int interval)
 void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &warpIm2, DImage &u, DImage &v,
 																    double alpha, int nOuterFPIterations, int nInnerFPIterations, int nSORIterations, int nCores)
 {
-	double smoothFlowStart = timer();
+	//double smoothFlowStart = timer();
 
 	DImage mask,imdx,imdy,imdt;
 	int imWidth,imHeight,nChannels,nPixels;
@@ -272,7 +272,7 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 		//--------------------------------------------------------------------------
 		for(int hh=0;hh<nInnerFPIterations;hh++)
 		{
-			double beforeLoopStart=timer();
+			//double beforeLoopStart=timer();
 			// compute the derivatives of the current flow field
 			if(hh==0)
 			{
@@ -298,7 +298,7 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 			uyData=uy.data();
 			vxData=vx.data();
 			vyData=vy.data();
-			double power_alpha = 0.5;
+			//double power_alpha = 0.5;
 
 			#pragma omp parallel
 			{
@@ -323,7 +323,7 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 			duData=du.data();
 			dvData=dv.data();
 
-			double _a  = 10000, _b = 0.1;
+			//double _a  = 10000, _b = 0.1;
 			if(nChannels==1)
 				for(int i=0;i<nPixels;i++)
 				{
@@ -424,9 +424,9 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 			du.reset();
 			dv.reset();
 
-			double beforeLoopEnd=timer();
+			//double beforeLoopEnd=timer();
 			//cout<<"["<<count<<"."<<hh<<"] Before Loop: "<<getGradientEnd-getGradientStart<<endl;
-			double loopStart=timer();
+			//double loopStart=timer();
 			// PAP: This is the most fertile spot for openmp
 			for(int k = 0; k<nSORIterations; k++)
 				#pragma omp parallel num_threads(nCores)
@@ -481,7 +481,7 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 						}
 				} // End pragma omp parallel
 
-				double loopEnd=timer();
+				//double loopEnd=timer();
 				//cout<<"["<<count<<"."<<hh<<"] Loop time: "<<loopEnd-loopStart<<endl;
 		} // End SOR Iteration
 		total_add+=u.Add(du);
@@ -505,7 +505,7 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 		}
 
 	}
-	double smoothFlowEnd = timer();
+	//double smoothFlowEnd = timer();
 	// DEBUG: display the amount of time spent on smooth flow calculation for this pyramid level
 	//cout<<"Smooth Flow Time: "<<smoothFlowEnd-smoothFlowStart;
 }	// End SmoothFlowSOR
@@ -599,7 +599,7 @@ void OpticalFlow::SmoothFlowPDE(const DImage &Im1, const DImage &Im2, DImage &wa
 			uyData=uy.data();
 			vxData=vx.data();
 			vyData=vy.data();
-			double power_alpha = 0.5;
+			//double power_alpha = 0.5;
 			for(int i=0;i<nPixels;i++)
 			{
 				temp=uxData[i]*uxData[i]+uyData[i]*uyData[i]+vxData[i]*vxData[i]+vyData[i]*vyData[i];
@@ -619,7 +619,7 @@ void OpticalFlow::SmoothFlowPDE(const DImage &Im1, const DImage &Im2, DImage &wa
 			duData=du.data();
 			dvData=dv.data();
 
-			double _a  = 10000, _b = 0.1;
+			//double _a  = 10000, _b = 0.1;
 			if(nChannels==1)
 				for(int i=0;i<nPixels;i++)
 				{
@@ -1038,7 +1038,7 @@ void OpticalFlow::testLaplacian(int dim)
 //					and passed back to Python using the TIMING_PROFILE map
 //
 //-------------------------------------------------------
-void myfunc(){cout<<"hello";}
+void myfunc(){cout<<"helo";}
 void OpticalFlow::Coarse2FineFlow(map<string,string>* TIMING_PROFILE, DImage &vx, DImage &vy, DImage &warpI2,const DImage &Im1, const DImage &Im2, int pyramidLevels, int nCores)
 {
 	// ASSERT: Coarse2FineFlow will always execute before Image.h > Global Variables will always be defined
@@ -1131,10 +1131,12 @@ void OpticalFlow::Coarse2FineFlow(map<string,string>* TIMING_PROFILE, DImage &vx
 
 		// DEBUG: Live Feed of what pyramid level we are working on
 		if(IsDisplay)
+		{
 			if(k == 0)
 				cout<<"P["<<to_string(k)<<"] !\n"<<flush;
 			else
 				cout<<"P["<<to_string(k)<<"]..."<<flush;
+		}
 	}
 
 	// === Output: warp image 2
