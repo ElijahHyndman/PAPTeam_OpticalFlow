@@ -34,6 +34,14 @@ OpticalFlow::NoiseModel OpticalFlow::noiseModel = OpticalFlow::Lap;
 GaussianMixture OpticalFlow::GMPara;
 Vector<double> OpticalFlow::LapPara;
 
+double 	TotalExecution=0.0,
+				GeneratePyramidLevels=0.0,
+				total_im2feature=0.0,
+				total_Multiplywith=0.0,
+				total_warpImageBicubicRef=0.0,
+				total_threshold=0.0,
+				getDxs=0.0;
+
 // PAP Relevant Variables:
 double GLOBAL_NTHREADS;
 
@@ -246,17 +254,11 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 	//--------------------------------------------------------------------------
 	for(int count=0;count<nOuterFPIterations;count++)
 	{
-		double getGradientStart=timer();
 		// compute the gradient
 		getDxs(imdx,imdy,imdt,Im1,warpIm2);
-		double getGradientEnd=timer();
-		//cout<<"["<<count<<"] Gradient time: "<<getGradientEnd-getGradientStart<<endl;
 
-		double genImageMaskStart=timer();
 		// generate the mask to set the weight of the pxiels moving outside of the image boundary to be zero
 		genInImageMask(mask,u,v);
-		double genImageMaskEnd=timer();
-		//cout<<"["<<count<<"] Generate Image Mask: "<<genImageMaskEnd-genImageMaskStart<<endl;
 
 		// set the derivative of the flow field to be zero
 		du.reset();
@@ -485,11 +487,9 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 			warpFL(warpIm2,Im1,Im2,u,v);
 		else
 		{
-			Im2.warpImageBicubicRef(Im1,warpIm2,u,v);
+			total_warpImageBicubicRef+= Im2.warpImageBicubicRef(Im1,warpIm2,u,v);
 			warpIm2.threshold();
 		}
-
-		//Im2.warpImageBicubicRef(Im1,warpIm2,BicubicCoeff,u,v);
 
 		// estimate noise level
 		switch(noiseModel)
@@ -795,7 +795,7 @@ void OpticalFlow::SmoothFlowPDE(const DImage &Im1, const DImage &Im2, DImage &wa
 			warpFL(warpIm2,Im1,Im2,u,v);
 		else
 		{
-			Im2.warpImageBicubicRef(Im1,warpIm2,u,v);
+			total_warpImageBicubicRef+= Im2.warpImageBicubicRef(Im1,warpIm2,u,v);
 			warpIm2.threshold();
 		}
 
@@ -1095,8 +1095,7 @@ void OpticalFlow::Coarse2FineFlow(map<string,string>* TIMING_PROFILE, DImage &vx
 	// Set global number of threads to use with OpenMP
 	GLOBAL_nThreads=nCores;
 	GLOBAL_timingMap=TIMING_PROFILE;
-
-	double TOTAL_BEGIN=timer();
+	TotalExecution=timer();
 
 
 	// Hardcoded values
@@ -1107,15 +1106,13 @@ void OpticalFlow::Coarse2FineFlow(map<string,string>* TIMING_PROFILE, DImage &vx
   int nCGIterations = 30;
 	bool IsDisplay=true;
 
-	double PYRAMID_CONSTRUCTION_BEGIN=timer();
-
+	GeneratePyramidLevels=timer();
 	// === SetUp: Calculate Pyramid Set-up with GPyramids
 	GaussianPyramid GPyramid1;
 	GaussianPyramid GPyramid2;
 	GPyramid1.ConstructPyramidLevels(Im1,ratio,pyramidLevels);
 	GPyramid2.ConstructPyramidLevels(Im2,ratio,pyramidLevels);
-
-	double PYRAMID_CONSTRUCTION_END=timer();
+	GeneratePyramidLevels=timer()-GeneratePyramidLevels;
 
 	DImage Image1,Image2,WarpImage2;
 
@@ -1132,14 +1129,11 @@ void OpticalFlow::Coarse2FineFlow(map<string,string>* TIMING_PROFILE, DImage &vx
 	}
 
 	// Accumulators
-	double DURATION_TOTAL_PYRAMID=0.0;
 	double DURATION_TOTAL_FLOW=0.0;
 
 	// Calculate Optical Flow on each level of pyramid
 	for(int k=GPyramid1.nlevels()-1;k>=0;k--)
 	{
-		double PYRAMID_LEVEL_BEGIN=timer();
-		double IMAGE_SETUP_BEGIN=timer();
 
 		if(IsDisplay)
 			cout << "P["<<k<<"] ";
@@ -1169,10 +1163,8 @@ void OpticalFlow::Coarse2FineFlow(map<string,string>* TIMING_PROFILE, DImage &vx
 			if(interpolation == Bilinear)
 				warpFL(WarpImage2,Image1,Image2,vx,vy);
 			else
-				Image2.warpImageBicubicRef(Image1,WarpImage2,vx,vy);
+				total_warpImageBicubicRef+= Image2.warpImageBicubicRef(Image1,WarpImage2,vx,vy);
 		}
-
-		double IMAGE_SETUP_END=timer();
 
 		// === Pyramid Level: Calculate Optical Flow
 		double IMAGE_FLOW_BEGIN=timer();
@@ -1180,43 +1172,26 @@ void OpticalFlow::Coarse2FineFlow(map<string,string>* TIMING_PROFILE, DImage &vx
 		SmoothFlowSOR(Image1,Image2,WarpImage2,vx,vy,alpha,nOuterFPIterations+k,nInnerFPIterations,nCGIterations+k*3, nCores);
 
 		double IMAGE_FLOW_END=timer();
-		double PYRAMID_LEVEL_END=timer();
 
 		// === Pyramid Level: Calculate the durations of image processing for this level of the pyramid
-		double DURATION_IMAGE_SETUP=IMAGE_SETUP_END-IMAGE_SETUP_BEGIN;
 		double DURATION_IMAGE_FLOW=IMAGE_FLOW_END-IMAGE_FLOW_BEGIN;
-		double DURATION_PYRAMID_LEVEL=PYRAMID_LEVEL_END-PYRAMID_LEVEL_BEGIN;
-		// === Pyramid Level: Store the values
-		//TIMING_PROFILE->insert( make_pair(("[P"+to_string(k)+" Image Setup]"),to_string(DURATION_IMAGE_SETUP)) );
-		//TIMING_PROFILE->insert( make_pair(("[P"+to_string(k)+" Image Flow]"),to_string(DURATION_IMAGE_FLOW)) );
-		//TIMING_PROFILE->insert( make_pair(("[P"+to_string(k)+"]"),to_string(DURATION_PYRAMID_LEVEL)) );
-
-		DURATION_TOTAL_PYRAMID+=DURATION_PYRAMID_LEVEL;
 		DURATION_TOTAL_FLOW+=DURATION_IMAGE_FLOW;
-		cout << " Total Time: "<<DURATION_PYRAMID_LEVEL;
+
 		if(IsDisplay)
 			cout << endl;
 	}
 
 	// === Output: warp image 2
-	double IMAGE_WARP_BEGIN=timer();
-	Im2.warpImageBicubicRef(Im1,warpI2,vx,vy);
+	total_warpImageBicubicRef+= Im2.warpImageBicubicRef(Im1,warpI2,vx,vy);
 	warpI2.threshold();
-	double IMAGE_WARP_END=timer();
-	double TOTAL_END=timer();
 
 
+	TotalExecution=timer()-TotalExecution;
 	// === Output: Calculate the durations of the entire pyramid
-	double DURATION_PYRAMID_CONSTRUCTION=PYRAMID_CONSTRUCTION_END-PYRAMID_CONSTRUCTION_BEGIN;
-	double DURATION_IMAGE_WARP=IMAGE_WARP_END-IMAGE_WARP_BEGIN;
-	double DURATION_TOTAL=TOTAL_END-TOTAL_BEGIN;
 
 	// === Output: Store the values
-	//TIMING_PROFILE->insert( make_pair("Pyramid Construction",to_string(DURATION_PYRAMID_CONSTRUCTION)) );
-	//TIMING_PROFILE->insert( make_pair("Image Warp",to_string(DURATION_IMAGE_WARP)) );
-	TIMING_PROFILE->insert( make_pair("Total Pyramid Calculation",to_string( DURATION_TOTAL_PYRAMID )) );
-	TIMING_PROFILE->insert( make_pair("Total Flow Calculation",to_string( DURATION_TOTAL_FLOW )) );
-	TIMING_PROFILE->insert( make_pair("Total C++ Execution",to_string( DURATION_TOTAL )) );
+	GLOBAL_timingMap->insert( make_pair("Total Flow Calculation",to_string( DURATION_TOTAL_FLOW )) );
+	GLOBAL_timingMap->insert( make_pair("Total C++ Execution",to_string( TotalExecution )) );
 }
 //-------------------------
 // End PAP_Team optical flow call

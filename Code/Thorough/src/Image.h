@@ -363,10 +363,10 @@ public:
 	void warpImageBicubic(Image<T>& output,const Image<T1>& coeff,const Image<T2>& vx,const Image<T2>& vy) const;
 
 	template <class T1,class T2>
-	void warpImageBicubicRef(const Image<T>& ref,Image<T>& output,const Image<T1>& imdx,const Image<T1>& imdy, const Image<T1>& imdxdy,const Image<T2>& vx,const Image<T2>& vy) const;
+	double warpImageBicubicRef(const Image<T>& ref,Image<T>& output,const Image<T1>& imdx,const Image<T1>& imdy, const Image<T1>& imdxdy,const Image<T2>& vx,const Image<T2>& vy) const;
 
 	template <class T1>
-	void warpImageBicubicRef(const Image<T>& ref,Image<T>& output,const Image<T1>& vx,const Image<T1>& vy) const;
+	double warpImageBicubicRef(const Image<T>& ref,Image<T>& output,const Image<T1>& vx,const Image<T1>& vy) const;
 
 	template <class T1,class T2>
 	void warpImageBicubicRef(const Image<T>& ref,Image<T>& output,const Image<T1>& coeff,const Image<T2>& vx,const Image<T2>& vy) const;
@@ -1228,7 +1228,7 @@ void Image<T>::GaussianSmoothing(Image<T1>& image,double sigma,int fsize) const
 	delete[] gFilter;
 
 	double end=timer();
-	GLOBAL_timingMap->insert( make_pair("Gaussian Smoothing",to_string( end-start )) );
+	//GLOBAL_timingMap->insert( make_pair("Gaussian Smoothing",to_string( end-start )) );
 }
 
 //------------------------------------------------------------------------------------------
@@ -1915,8 +1915,12 @@ void Image<T>::Subtract(const Image<T1> &image1, const Image<T2> &image2)
 
 	const T1*& pData1=image1.data();
 	const T2*& pData2=image2.data();
-	for(int i=0;i<nElements;i++)
-		pData[i]=(T)pData1[i]-pData2[i];
+	#pragma omp parallel num_threads(GLOBAL_nThreads)
+	{
+		#pragma omp for schedule(static)
+		for(int i=0;i<nElements;i++)
+			pData[i]=(T)pData1[i]-pData2[i];
+	}
 }
 
 //------------------------------------------------------------------------------------------
@@ -2523,14 +2527,14 @@ void Image<T>::warpImageBicubicCoeff(Image<T1>& output) const
 
 template <class T>
 template <class T1>
-void Image<T>::warpImageBicubicRef(const Image<T>& ref,Image<T>& output,const Image<T1>& vx,const Image<T1>& vy) const
+double Image<T>::warpImageBicubicRef(const Image<T>& ref,Image<T>& output,const Image<T1>& vx,const Image<T1>& vy) const
 {
 	double dfilter[3] = {-0.5,0,0.5};
 	DImage imdx,imdy,imdxdy;
 	imfilter_h(imdx,dfilter,1);
 	imfilter_v(imdy,dfilter,1);
 	imdx.imfilter_v(imdxdy,dfilter,1);
-	warpImageBicubicRef(ref,output,imdx,imdy,imdxdy,vx,vy);
+	return warpImageBicubicRef(ref,output,imdx,imdy,imdxdy,vx,vy);
 }
 
 template <class T>
@@ -2559,9 +2563,11 @@ void Image<T>::DissembleFlow(Image<T1>& vx,Image<T1>& vy) const
 
 template <class T>
 template <class T1,class T2>
-void Image<T>::warpImageBicubicRef(const Image<T>& ref,Image<T>& output,const Image<T1>& imdx,const Image<T1>& imdy,const Image<T1>& imdxdy,
+double Image<T>::warpImageBicubicRef(const Image<T>& ref,Image<T>& output,const Image<T1>& imdx,const Image<T1>& imdy,const Image<T1>& imdxdy,
 																		const Image<T2>& vx,const Image<T2>& vy) const
 {
+	double start=timer();
+
 	T* pIm = pData;
 	const T1* pImDx = imdx.data();
 	const T1* pImDy = imdy.data();
@@ -2633,6 +2639,9 @@ void Image<T>::warpImageBicubicRef(const Image<T>& ref,Image<T>& output,const Im
 				}
 			}
 	}
+
+	double end=timer();
+	return end-start;
 }
 
 template <class T>
