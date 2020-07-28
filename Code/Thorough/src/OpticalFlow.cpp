@@ -40,7 +40,13 @@ double 	TotalExecution=0.0,
 				total_Multiplywith=0.0,
 				total_warpImageBicubicRef=0.0,
 				total_threshold=0.0,
-				getDxs=0.0;
+				total_genInImageMask=0.0,
+				total_Laplacian=0.0,
+				total_dx=0.0,
+				total_dy=0.0,
+				total_add=0.0,
+				total_subtract=0.0,
+				total_estLaplacianNoise=0.0;
 
 // PAP Relevant Variables:
 double GLOBAL_NTHREADS;
@@ -56,34 +62,24 @@ OpticalFlow::~OpticalFlow(void)
 //--------------------------------------------------------------------------------------------------------
 //  function to compute dx, dy and dt for motion estimation
 //--------------------------------------------------------------------------------------------------------
-void OpticalFlow::getDxs(DImage &imdx, DImage &imdy, DImage &imdt, const DImage &im1, const DImage &im2)
+double OpticalFlow::getDxs(DImage &imdx, DImage &imdy, DImage &imdt, const DImage &im1, const DImage &im2)
 {
-	//double gfilter[5]={0.01,0.09,0.8,0.09,0.01};
+	double start=timer();
+
 	double gfilter[5]={0.02,0.11,0.74,0.11,0.02};
-	//double gfilter[5]={0,0,1,0,0};
 	if(1)
 	{
-		//DImage foo,Im;
-		//Im.Add(im1,im2);
-		//Im.Multiplywith(0.5);
-		////foo.imfilter_hv(Im,gfilter,2,gfilter,2);
-		//Im.dx(imdx,true);
-		//Im.dy(imdy,true);
-		//imdt.Subtract(im2,im1);
 		DImage Im1,Im2,Im;
 
 		im1.imfilter_hv(Im1,gfilter,2,gfilter,2);
 		im2.imfilter_hv(Im2,gfilter,2,gfilter,2);
 		Im.copyData(Im1);
-		Im.Multiplywith(0.4);
-		Im.Add(Im2,0.6);
-		//Im.Multiplywith(0.5);
-		//Im1.copyData(im1);
-		//Im2.copyData(im2);
+		total_Multiplywith+=Im.Multiplywith(0.4);
+		total_add+=Im.Add(Im2,0.6);
 
-		Im.dx(imdx,true);
-		Im.dy(imdy,true);
-		imdt.Subtract(Im2,Im1);
+		total_dx+=Im.dx(imdx,true);
+		total_dx+=Im.dy(imdy,true);
+		total_subtract+=imdt.Subtract(Im2,Im1);
 	}
 	else
 	{
@@ -96,15 +92,18 @@ void OpticalFlow::getDxs(DImage &imdx, DImage &imdy, DImage &imdt, const DImage 
 		//Im1.copyData(im1);
 		//Im2.copyData(im2);
 
-		Im2.dx(imdx,true);
-		Im2.dy(imdy,true);
-		imdt.Subtract(Im2,Im1);
+		total_dx+=Im2.dx(imdx,true);
+		total_dy+=Im2.dy(imdy,true);
+		total_subtract+=imdt.Subtract(Im2,Im1);
 	}
 
 
 	imdx.setDerivative();
 	imdy.setDerivative();
 	imdt.setDerivative();
+
+	double end=timer();
+	return end-start;
 }
 
 //--------------------------------------------------------------------------------------------------------
@@ -155,8 +154,10 @@ void OpticalFlow::warpFL(DImage &warpIm2, const DImage &Im1, const DImage &Im2, 
 //--------------------------------------------------------------------------------------------------------
 // function to generate mask of the pixels that move inside the image boundary
 //--------------------------------------------------------------------------------------------------------
-void OpticalFlow::genInImageMask(DImage &mask, const DImage &vx, const DImage &vy,int interval)
+double OpticalFlow::genInImageMask(DImage &mask, const DImage &vx, const DImage &vy,int interval)
 {
+	double start=timer();
+
 	int imWidth,imHeight;
 	imWidth=vx.width();
 	imHeight=vx.height();
@@ -172,7 +173,7 @@ void OpticalFlow::genInImageMask(DImage &mask, const DImage &vx, const DImage &v
 
 	#pragma omp parallel num_threads(GLOBAL_nThreads)
 	{
-		#pragma omp for schedule(static)
+		#pragma omp for
 		for(int i=0;i<imHeight;i++)
 			for(int j=0;j<imWidth;j++)
 			{
@@ -184,6 +185,8 @@ void OpticalFlow::genInImageMask(DImage &mask, const DImage &vx, const DImage &v
 				pMask[offset]=1;
 			}
 	}
+	double end=timer();
+	return end-start;
 }
 
 void OpticalFlow::genInImageMask(DImage &mask, const DImage &flow,int interval)
@@ -255,10 +258,10 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 	for(int count=0;count<nOuterFPIterations;count++)
 	{
 		// compute the gradient
-		getDxs(imdx,imdy,imdt,Im1,warpIm2);
+		 getDxs(imdx,imdy,imdt,Im1,warpIm2);
 
 		// generate the mask to set the weight of the pxiels moving outside of the image boundary to be zero
-		genInImageMask(mask,u,v);
+		total_genInImageMask+=genInImageMask(mask,u,v);
 
 		// set the derivative of the flow field to be zero
 		du.reset();
@@ -278,13 +281,13 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 			}
 			else
 			{
-				uu.Add(u,du);
-				vv.Add(v,dv);
+				total_add+=uu.Add(u,du);
+				total_add+=vv.Add(v,dv);
 			}
-			uu.dx(ux);
-			uu.dy(uy);
-			vv.dx(vx);
-			vv.dy(vy);
+			total_dx+=uu.dx(ux);
+			total_dy+=uu.dy(uy);
+			total_dx+=vv.dx(vx);
+			total_dy+=vv.dy(vy);
 
 			// compute the weight of phi
 			Phi_1st.reset();
@@ -299,7 +302,7 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 
 			#pragma omp parallel
 			{
-				#pragma omp for schedule(static)
+				#pragma omp for
 				for(int i=0;i<nPixels;i++)
 				{
 					temp=uxData[i]*uxData[i]+uyData[i]*uyData[i]+vxData[i]*vxData[i]+vyData[i]*vyData[i];
@@ -351,7 +354,7 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 			else // Multiple Channels
 				#pragma omp parallel
 				{
-					#pragma omp for schedule(static)
+					#pragma omp for
 					for(int i=0;i<nPixels;i++)
 						for(int k=0;k<nChannels;k++)
 						{
@@ -404,8 +407,8 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 				imdtdy.copyData(ImDtDy);
 			}
 			// laplacian filtering of the current flow field
-		    Laplacian(foo1,u,Phi_1st);
-			Laplacian(foo2,v,Phi_1st);
+		  total_Laplacian+=  Laplacian(foo1,u,Phi_1st);
+			total_Laplacian+=  Laplacian(foo2,v,Phi_1st);
 
 			for(int i=0;i<nPixels;i++)
 			{
@@ -428,7 +431,7 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 			for(int k = 0; k<nSORIterations; k++)
 				#pragma omp parallel num_threads(nCores)
 				{
-					#pragma omp for schedule(static)
+					#pragma omp for
 					for(int i = 0; i<imHeight; i++)
 						for(int j = 0; j<imWidth; j++)
 						{
@@ -481,14 +484,14 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 				double loopEnd=timer();
 				//cout<<"["<<count<<"."<<hh<<"] Loop time: "<<loopEnd-loopStart<<endl;
 		} // End SOR Iteration
-		u.Add(du);
-		v.Add(dv);
+		total_add+=u.Add(du);
+		total_add+=v.Add(dv);
 		if(interpolation == Bilinear)
 			warpFL(warpIm2,Im1,Im2,u,v);
 		else
 		{
 			total_warpImageBicubicRef+= Im2.warpImageBicubicRef(Im1,warpIm2,u,v);
-			warpIm2.threshold();
+			total_threshold+=warpIm2.threshold();
 		}
 
 		// estimate noise level
@@ -498,7 +501,7 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 			estGaussianMixture(Im1,warpIm2,GMPara);
 			break;
 		case Lap:
-			estLaplacianNoise(Im1,warpIm2,LapPara);
+			total_estLaplacianNoise+=estLaplacianNoise(Im1,warpIm2,LapPara);
 		}
 
 	}
@@ -556,10 +559,10 @@ void OpticalFlow::SmoothFlowPDE(const DImage &Im1, const DImage &Im2, DImage &wa
 	for(int count=0;count<nOuterFPIterations;count++)
 	{
 		// compute the gradient
-		getDxs(imdx,imdy,imdt,Im1,warpIm2);
+		 getDxs(imdx,imdy,imdt,Im1,warpIm2);
 
 		// generate the mask to set the weight of the pxiels moving outside of the image boundary to be zero
-		genInImageMask(mask,u,v);
+		total_genInImageMask+=genInImageMask(mask,u,v);
 
 		// set the derivative of the flow field to be zero
 		du.reset();
@@ -578,13 +581,13 @@ void OpticalFlow::SmoothFlowPDE(const DImage &Im1, const DImage &Im2, DImage &wa
 			}
 			else
 			{
-				uu.Add(u,du);
-				vv.Add(v,dv);
+				total_add+=uu.Add(u,du);
+				total_add+=vv.Add(v,dv);
 			}
-			uu.dx(ux);
-			uu.dy(uy);
-			vv.dx(vx);
-			vv.dy(vy);
+			total_dx+=uu.dx(ux);
+			total_dy+=uu.dy(uy);
+			total_dx+=vv.dx(vx);
+			total_dy+=vv.dy(vy);
 
 			// compute the weight of phi
 			Phi_1st.reset();
@@ -712,8 +715,8 @@ void OpticalFlow::SmoothFlowPDE(const DImage &Im1, const DImage &Im2, DImage &wa
 			b2.copyData(imdtdy);
 
 			// laplacian filtering of the current flow field
-		    Laplacian(foo1,u,Phi_1st);
-			Laplacian(foo2,v,Phi_1st);
+		  total_Laplacian+= Laplacian(foo1,u,Phi_1st);
+			total_Laplacian+= Laplacian(foo2,v,Phi_1st);
 			_FlowPrecision *b1Data,*b2Data;
 			const _FlowPrecision *foo1Data,*foo2Data;
 			b1Data=b1.data();
@@ -756,20 +759,20 @@ void OpticalFlow::SmoothFlowPDE(const DImage &Im1, const DImage &Im2, DImage &wa
 				else
 				{
 					double ratio=rou[k]/rou[k-1];
-					p1.Add(r1,p1,ratio);
-					p2.Add(r2,p2,ratio);
+					total_add+=p1.Add(r1,p1,ratio);
+					total_add+=p2.Add(r2,p2,ratio);
 				}
 				// go through the large linear system
 				foo1.Multiply(A11,p1);
 				foo2.Multiply(A12,p2);
 				q1.Add(foo1,foo2);
-				Laplacian(foo1,p1,Phi_1st);
+				total_Laplacian+= Laplacian(foo1,p1,Phi_1st);
 				q1.Add(foo1,alpha);
 
 				foo1.Multiply(A12,p1);
 				foo2.Multiply(A22,p2);
 				q2.Add(foo1,foo2);
-				Laplacian(foo2,p2,Phi_1st);
+				total_Laplacian+= Laplacian(foo2,p2,Phi_1st);
 				q2.Add(foo2,alpha);
 
 				double beta;
@@ -796,7 +799,7 @@ void OpticalFlow::SmoothFlowPDE(const DImage &Im1, const DImage &Im2, DImage &wa
 		else
 		{
 			total_warpImageBicubicRef+= Im2.warpImageBicubicRef(Im1,warpIm2,u,v);
-			warpIm2.threshold();
+			total_threshold+=warpIm2.threshold();
 		}
 
 		//Im2.warpImageBicubicRef(Im1,warpIm2,BicubicCoeff,u,v);
@@ -808,7 +811,7 @@ void OpticalFlow::SmoothFlowPDE(const DImage &Im1, const DImage &Im2, DImage &wa
 			estGaussianMixture(Im1,warpIm2,GMPara);
 			break;
 		case Lap:
-			estLaplacianNoise(Im1,warpIm2,LapPara);
+			total_estLaplacianNoise+=estLaplacianNoise(Im1,warpIm2,LapPara);
 		}
 
 	}// end of outer fixed point iteration
@@ -869,8 +872,10 @@ void OpticalFlow::estGaussianMixture(const DImage& Im1,const DImage& Im2,Gaussia
 	}
 }
 
-void OpticalFlow::estLaplacianNoise(const DImage& Im1,const DImage& Im2,Vector<double>& para)
+double OpticalFlow::estLaplacianNoise(const DImage& Im1,const DImage& Im2,Vector<double>& para)
 {
+	double start=timer();
+
 	int nChannels = Im1.nchannels();
 	if(para.dim()!=nChannels)
 		para.allocate(nChannels);
@@ -883,7 +888,7 @@ void OpticalFlow::estLaplacianNoise(const DImage& Im1,const DImage& Im2,Vector<d
 
 	#pragma omp parallel num_threads(GLOBAL_nThreads)
 	{
-		#pragma omp for schedule(static)
+		#pragma omp for
 		for(int i =0;i<Im1.npixels();i++)
 			for(int k = 0;k<nChannels;k++)
 			{
@@ -909,10 +914,15 @@ void OpticalFlow::estLaplacianNoise(const DImage& Im1,const DImage& Im2,Vector<d
 		else
 			para[k]/=total[k];
 	}
+
+	double end=timer();
+	return end-start;
 }
 
-void OpticalFlow::Laplacian(DImage &output, const DImage &input, const DImage& weight)
+double OpticalFlow::Laplacian(DImage &output, const DImage &input, const DImage& weight)
 {
+	double start=timer();
+
 	if(output.matchDimension(input)==false)
 		output.allocate(input);
 	output.reset();
@@ -920,7 +930,7 @@ void OpticalFlow::Laplacian(DImage &output, const DImage &input, const DImage& w
 	if(input.matchDimension(weight)==false)
 	{
 		cout<<"Error in image dimension matching OpticalFlow::Laplacian()!"<<endl;
-		return;
+		return 0.0;
 	}
 
 	const _FlowPrecision *inputData=input.data(),*weightData=weight.data();
@@ -932,14 +942,14 @@ void OpticalFlow::Laplacian(DImage &output, const DImage &input, const DImage& w
 	// horizontal filtering
 	#pragma omp parallel num_threads(GLOBAL_nThreads)
 	{
-		#pragma omp for schedule(static)
+		#pragma omp for
 		for(int i=0;i<height;i++)
 			for(int j=0;j<width-1;j++)
 			{
 				int offset=i*width+j;
 				fooData[offset]=(inputData[offset+1]-inputData[offset])*weightData[offset];
 			}
-		#pragma omp for schedule(static)
+		#pragma omp for
 		for(int i=0;i<height;i++)
 			for(int j=0;j<width;j++)
 			{
@@ -955,14 +965,14 @@ void OpticalFlow::Laplacian(DImage &output, const DImage &input, const DImage& w
 	// vertical filtering
 	#pragma omp parallel num_threads(GLOBAL_nThreads)
 	{
-		#pragma omp for schedule(static)
+		#pragma omp for
 		for(int i=0;i<height-1;i++)
 			for(int j=0;j<width;j++)
 			{
 				int offset=i*width+j;
 				fooData[offset]=(inputData[offset+width]-inputData[offset])*weightData[offset];
 			}
-		#pragma omp for schedule(static)
+		#pragma omp for
 		for(int i=0;i<height;i++)
 			for(int j=0;j<width;j++)
 			{
@@ -973,6 +983,9 @@ void OpticalFlow::Laplacian(DImage &output, const DImage &input, const DImage& w
 					outputData[offset]+=fooData[offset-width];
 			}
 	}
+
+	double end=timer();
+	return end-start;
 }
 
 void OpticalFlow::testLaplacian(int dim)
@@ -1007,92 +1020,20 @@ void OpticalFlow::testLaplacian(int dim)
 	}
 }
 
-//--------------------------------------------------------------------------------------
-// function to perfomr coarse to fine optical flow estimation
-//--------------------------------------------------------------------------------------
-void OpticalFlow::Coarse2FineFlow(DImage &vx, DImage &vy, DImage &warpI2,const DImage &Im1, const DImage &Im2, double alpha, double ratio, int minWidth,
-																	 int nOuterFPIterations, int nInnerFPIterations, int nCGIterations)
-{
-	// first build the pyramid of the two images
-	GaussianPyramid GPyramid1;
-	GaussianPyramid GPyramid2;
-	GPyramid1.ConstructPyramid(Im1,ratio,minWidth);
-	GPyramid2.ConstructPyramid(Im2,ratio,minWidth);
-	DImage Image1,Image2,WarpImage2;
-	//GaussianMixture GMPara(Im1.nchannels()+2);
 
-	// initialize noise
-	switch(noiseModel){
-	case GMixture:
-		GMPara.reset(Im1.nchannels()+2);
-		break;
-	case Lap:
-		LapPara.allocate(Im1.nchannels()+2);
-		for(int i = 0;i<LapPara.dim();i++)
-			LapPara[i] = 0.02;
-		break;
-	}
-
-	// for each level of the pyramid
-	for(int k=GPyramid1.nlevels()-1;k>=0;k--)
-	{
-		if(IsDisplay)
-			cout<<"Pyramid level "<<k;
-		int width=GPyramid1.Image(k).width();
-		int height=GPyramid1.Image(k).height();
-		im2feature(Image1,GPyramid1.Image(k));
-		im2feature(Image2,GPyramid2.Image(k));
-
-		if(k==GPyramid1.nlevels()-1) // if at the top level
-		{
-			vx.allocate(width,height);
-			vy.allocate(width,height);
-			//warpI2.copyData(Image2);
-			WarpImage2.copyData(Image2);
-		}
-		else
-		{
-
-			vx.imresize(width,height);
-			vx.Multiplywith(1/ratio);
-			vy.imresize(width,height);
-			vy.Multiplywith(1/ratio);
-			//warpFL(warpI2,GPyramid1.Image(k),GPyramid2.Image(k),vx,vy);
-			if(interpolation == Bilinear)
-				warpFL(WarpImage2,Image1,Image2,vx,vy);
-			else
-				Image2.warpImageBicubicRef(Image1,WarpImage2,vx,vy);
-		}
-		//SmoothFlowPDE(GPyramid1.Image(k),GPyramid2.Image(k),warpI2,vx,vy,alpha,nOuterFPIterations,nInnerFPIterations,nCGIterations);
-		//SmoothFlowPDE(Image1,Image2,WarpImage2,vx,vy,alpha*pow((1/ratio),k),nOuterFPIterations,nInnerFPIterations,nCGIterations,GMPara);
-
-		//SmoothFlowPDE(Image1,Image2,WarpImage2,vx,vy,alpha,nOuterFPIterations,nInnerFPIterations,nCGIterations);
-		SmoothFlowSOR(Image1,Image2,WarpImage2,vx,vy,alpha,nOuterFPIterations+k,nInnerFPIterations,nCGIterations+k*3, 1);
-
-		//GMPara.display();
-		if(IsDisplay)
-			cout<<endl;
-	}
-	//warpFL(warpI2,Im1,Im2,vx,vy);
-	Im2.warpImageBicubicRef(Im1,warpI2,vx,vy);
-	warpI2.threshold();
-}
-
-
-// Timed Version that overloads the Coarse2FineFlow
 //-------------------------------------------------------
 // PAP_Team version of Coarse2FineFlow
-/*		-This function is the highest level of Optical Flow
-					calculation in the cpp files,
-			-All of the diagnostic timing will be performed here
-					and passed back to Python using the TIMING_PROFILE map
-*/
+//		-This function is the highest level of Optical Flow
+//					calculation in the cpp files,
+//		-All of the diagnostic timing will be performed here
+//					and passed back to Python using the TIMING_PROFILE map
+//
 //-------------------------------------------------------
 void myfunc(){cout<<"helol";}
 void OpticalFlow::Coarse2FineFlow(map<string,string>* TIMING_PROFILE, DImage &vx, DImage &vy, DImage &warpI2,const DImage &Im1, const DImage &Im2, int pyramidLevels, int nCores)
 {
 	// ASSERT: Coarse2FineFlow will always execute before Image.h > Global Variables will always be defined
-	// Set global number of threads to use with OpenMP
+	// === Set global variables for use amongst scripts
 	GLOBAL_nThreads=nCores;
 	GLOBAL_timingMap=TIMING_PROFILE;
 	TotalExecution=timer();
@@ -1106,8 +1047,9 @@ void OpticalFlow::Coarse2FineFlow(map<string,string>* TIMING_PROFILE, DImage &vx
   int nCGIterations = 30;
 	bool IsDisplay=true;
 
-	GeneratePyramidLevels=timer();
+
 	// === SetUp: Calculate Pyramid Set-up with GPyramids
+	GeneratePyramidLevels=timer();
 	GaussianPyramid GPyramid1;
 	GaussianPyramid GPyramid2;
 	GPyramid1.ConstructPyramidLevels(Im1,ratio,pyramidLevels);
@@ -1141,8 +1083,8 @@ void OpticalFlow::Coarse2FineFlow(map<string,string>* TIMING_PROFILE, DImage &vx
 		// === Pyramid Level: Image presets calculated by GPyramid
 		int width=GPyramid1.Image(k).width();
 		int height=GPyramid1.Image(k).height();
-		im2feature(Image1,GPyramid1.Image(k));
-		im2feature(Image2,GPyramid2.Image(k));
+		total_im2feature+=im2feature(Image1,GPyramid1.Image(k));
+		total_im2feature+=im2feature(Image2,GPyramid2.Image(k));
 
 		// === Pyramid Level: Image Prepping
 		if(k==GPyramid1.nlevels()-1) // if at the top level
@@ -1156,9 +1098,9 @@ void OpticalFlow::Coarse2FineFlow(map<string,string>* TIMING_PROFILE, DImage &vx
 		{
 
 			vx.imresize(width,height);
-			vx.Multiplywith(1/ratio);
+			total_Multiplywith+= vx.Multiplywith(1/ratio);
 			vy.imresize(width,height);
-			vy.Multiplywith(1/ratio);
+			total_Multiplywith+= vy.Multiplywith(1/ratio);
 			//warpFL(warpI2,GPyramid1.Image(k),GPyramid2.Image(k),vx,vy);
 			if(interpolation == Bilinear)
 				warpFL(WarpImage2,Image1,Image2,vx,vy);
@@ -1183,7 +1125,7 @@ void OpticalFlow::Coarse2FineFlow(map<string,string>* TIMING_PROFILE, DImage &vx
 
 	// === Output: warp image 2
 	total_warpImageBicubicRef+= Im2.warpImageBicubicRef(Im1,warpI2,vx,vy);
-	warpI2.threshold();
+	total_threshold+=warpI2.threshold();
 
 
 	TotalExecution=timer()-TotalExecution;
@@ -1192,87 +1134,45 @@ void OpticalFlow::Coarse2FineFlow(map<string,string>* TIMING_PROFILE, DImage &vx
 	// === Output: Store the values
 	GLOBAL_timingMap->insert( make_pair("Total Flow Calculation",to_string( DURATION_TOTAL_FLOW )) );
 	GLOBAL_timingMap->insert( make_pair("Total C++ Execution",to_string( TotalExecution )) );
+	GLOBAL_timingMap->insert( make_pair("Generate Pyramid Levels",to_string( GeneratePyramidLevels )) );
+	GLOBAL_timingMap->insert( make_pair("im2feature",to_string( total_im2feature )) );
+	GLOBAL_timingMap->insert( make_pair("multiplyWith",to_string( total_Multiplywith )) );
+	GLOBAL_timingMap->insert( make_pair("dx",to_string( total_dx )) );
+	GLOBAL_timingMap->insert( make_pair("dy",to_string( total_dy )) );
+	GLOBAL_timingMap->insert( make_pair("add",to_string( total_add )) );
+	GLOBAL_timingMap->insert( make_pair("subtract",to_string( total_subtract )) );
+	GLOBAL_timingMap->insert( make_pair("warpImageBicubicRef",to_string( total_warpImageBicubicRef )) );
+	GLOBAL_timingMap->insert( make_pair("threshold",to_string( total_threshold )) );
+	GLOBAL_timingMap->insert( make_pair("genInImageMask",to_string( total_genInImageMask )) );
+	GLOBAL_timingMap->insert( make_pair("Laplacian",to_string( total_Laplacian )) );
+	GLOBAL_timingMap->insert( make_pair("estLaplacianNoise",to_string( total_estLaplacianNoise )) );
+	// Resetting the global variables. "Dont try global variables, kids" 
+	TotalExecution=0.0;
+	GeneratePyramidLevels=0.0;
+	total_im2feature=0.0;
+	total_Multiplywith=0.0;
+	total_warpImageBicubicRef=0.0;
+	total_threshold=0.0;
+	total_genInImageMask=0.0;
+	total_Laplacian=0.0;
+	total_dx=0.0;
+	total_dy=0.0;
+	total_add=0.0;
+	total_subtract=0.0;
+	total_estLaplacianNoise=0.0;
+
 }
 //-------------------------
 // End PAP_Team optical flow call
 //-------------------------
 
-
-void OpticalFlow::Coarse2FineFlowLevel(DImage &vx, DImage &vy, DImage &warpI2,const DImage &Im1, const DImage &Im2, double alpha, double ratio, int nLevels,
-																	 int nOuterFPIterations, int nInnerFPIterations, int nCGIterations)
-{
-	// first build the pyramid of the two images
-	GaussianPyramid GPyramid1;
-	GaussianPyramid GPyramid2;
-	GaussianPyramid GFlow;
-	DImage flow;
-	AssembleFlow(vx,vy,flow);
-	if(IsDisplay)
-		cout<<"Constructing pyramid...";
-	GPyramid1.ConstructPyramidLevels(Im1,ratio,nLevels);
-	GPyramid2.ConstructPyramidLevels(Im2,ratio,nLevels);
-	GFlow.ConstructPyramidLevels(flow,ratio,nLevels);
-	flow= GFlow.Image(nLevels-1);
-	flow.Multiplywith(pow(ratio,nLevels-1));
-	DissembleFlow(flow,vx,vy);
-
-	if(IsDisplay)
-		cout<<"done!"<<endl;
-
-	// now iterate from the top level to the bottom
-	DImage Image1,Image2,WarpImage2;
-
-	// initialize noise
-	switch(noiseModel){
-	case GMixture:
-		GMPara.reset(Im1.nchannels()+2);
-		break;
-	case Lap:
-		LapPara.allocate(Im1.nchannels()+2);
-		for(int i = 0;i<LapPara.dim();i++)
-			LapPara[i] = 0.02;
-		break;
-	}
-
-
-	for(int k=GPyramid1.nlevels()-1;k>=0;k--)
-	{
-		if(IsDisplay)
-			cout<<"Pyramid level "<<k;
-		int width=GPyramid1.Image(k).width();
-		int height=GPyramid1.Image(k).height();
-		im2feature(Image1,GPyramid1.Image(k));
-		im2feature(Image2,GPyramid2.Image(k));
-
-		if(k<GPyramid1.nlevels()-1) // if at the top level
-		{
-			vx.imresize(width,height);
-			vx.Multiplywith(1/ratio);
-			vy.imresize(width,height);
-			vy.Multiplywith(1/ratio);
-		}
-		if(interpolation == Bilinear)
-			warpFL(WarpImage2,Image1,Image2,vx,vy);
-		else
-			Image2.warpImageBicubicRef(Image1,WarpImage2,vx,vy);
-		//SmoothFlowPDE(GPyramid1.Image(k),GPyramid2.Image(k),warpI2,vx,vy,alpha,nOuterFPIterations,nInnerFPIterations,nCGIterations);
-		//SmoothFlowPDE(Image1,Image2,WarpImage2,vx,vy,alpha*pow((1/ratio),k),nOuterFPIterations,nInnerFPIterations,nCGIterations,GMPara);
-
-		SmoothFlowPDE(Image1,Image2,WarpImage2,vx,vy,alpha,nOuterFPIterations,nInnerFPIterations,nCGIterations);
-		//GMPara.display();
-		if(IsDisplay)
-			cout<<endl;
-	}
-	//warpFL(warpI2,Im1,Im2,vx,vy);
-	Im2.warpImageBicubicRef(Im1,warpI2,vx,vy);
-	warpI2.threshold();
-}
-
 //---------------------------------------------------------------------------------------
 // function to convert image to feature image
 //---------------------------------------------------------------------------------------
-void OpticalFlow::im2feature(DImage &imfeature, const DImage &im)
+double OpticalFlow::im2feature(DImage &imfeature, const DImage &im)
 {
+	double start=timer();
+
 	int width=im.width();
 	int height=im.height();
 	int nchannels=im.nchannels();
@@ -1280,8 +1180,8 @@ void OpticalFlow::im2feature(DImage &imfeature, const DImage &im)
 	{
 		imfeature.allocate(im.width(),im.height(),3);
 		DImage imdx,imdy;
-		im.dx(imdx,true);
-		im.dy(imdy,true);
+		total_dx+=im.dx(imdx,true);
+		total_dy+=im.dy(imdy,true);
 		_FlowPrecision* data=imfeature.data();
 		for(int i=0;i<height;i++)
 			for(int j=0;j<width;j++)
@@ -1299,12 +1199,12 @@ void OpticalFlow::im2feature(DImage &imfeature, const DImage &im)
 
 		imfeature.allocate(im.width(),im.height(),5);
 		DImage imdx,imdy;
-		grayImage.dx(imdx,true);
-		grayImage.dy(imdy,true);
+		total_dx+=grayImage.dx(imdx,true);
+		total_dy+=grayImage.dy(imdy,true);
 		_FlowPrecision* data=imfeature.data();
 		#pragma omp Parallel
 		{
-			#pragma omp for schedule(static)
+			#pragma omp for
 			for(int i=0;i<height;i++)
 				for(int j=0;j<width;j++)
 				{
@@ -1319,6 +1219,9 @@ void OpticalFlow::im2feature(DImage &imfeature, const DImage &im)
 	}
 	else
 		imfeature.copyData(im);
+
+	double end=timer();
+	return end-start;
 }
 
 bool OpticalFlow::LoadOpticalFlow(const char* filename,DImage &flow)

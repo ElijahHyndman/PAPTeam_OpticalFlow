@@ -153,13 +153,13 @@ public:
 	Image<T1> dx (bool IsAdvancedFilter=false) const;
 
 	template <class T1>
-	void dx(Image<T1>& image,bool IsAdvancedFilter=false) const;
+	double dx(Image<T1>& image,bool IsAdvancedFilter=false) const;
 
 	template<class T1>
 	Image<T1> dy(bool IsAdvancedFilter=false) const;
 
 	template <class T1>
-	void dy(Image<T1>& image,bool IsAdvancedFilter=false) const;
+	double dy(Image<T1>& image,bool IsAdvancedFilter=false) const;
 
 	template <class T1>
 	void dxx(Image<T1>& image) const;
@@ -281,29 +281,29 @@ public:
 	void Multiply(const Image<T1>& image1,const Image<T2>& image2,const Image<T3>& image3);
 
 	template <class T1>
-	void Multiplywith(const Image<T1>& image1);
+	double Multiplywith(const Image<T1>& image1);
 
 	template <class T1>
 	void MultiplywithAcross(const Image<T1>& image1);
 
-	void Multiplywith(double value);
+	double Multiplywith(double value);
 
 	template <class T1,class T2>
-	void Add(const Image<T1>& image1,const Image<T2>& image2);
+	double Add(const Image<T1>& image1,const Image<T2>& image2);
 
 	template <class T1,class T2>
-	void Add(const Image<T1>& image1,const Image<T2>& image2,double ratio);
+	double Add(const Image<T1>& image1,const Image<T2>& image2,double ratio);
 
-	void Add(const T value);
+	double Add(const T value);
 
 	template <class T1>
-	void Add(const Image<T1>& image1,const double value);
+	double Add(const Image<T1>& image1,const double value);
 
 	template <class T1>
-	void Add(const Image<T1>& image1);
+	double Add(const Image<T1>& image1);
 
 	template <class T1,class T2>
-	void Subtract(const Image<T1>& image1,const Image<T2>& image2);
+	double Subtract(const Image<T1>& image1,const Image<T2>& image2);
 
 	// arestmetic operators
 	void square();
@@ -315,7 +315,7 @@ public:
 	void normalize(Image<T>& image);
 
 	// function to threshold an image
-	void threshold();
+	double threshold();
 
 	// function to compute the statistics of the image
 	double norm2() const;
@@ -969,7 +969,7 @@ bool Image<T>::loadImage(ifstream& myfile)
 //------------------------------------------------------------------------------------------
 template <class T>
 template <class T1>
-void Image<T>::dx(Image<T1>& result,bool IsAdvancedFilter) const
+double Image<T>::dx(Image<T1>& result,bool IsAdvancedFilter) const
 {
 	if(matchDimension(result)==false)
 		result.allocate(imWidth,imHeight,nChannels);
@@ -981,7 +981,7 @@ void Image<T>::dx(Image<T1>& result,bool IsAdvancedFilter) const
 
 		#pragma omp parallel num_threads(GLOBAL_nThreads)
 		{
-			#pragma omp for schedule(static)
+			#pragma omp for  
 			for(i=0;i<imHeight;i++)
 				for(j=0;j<imWidth-1;j++)
 				{
@@ -1013,8 +1013,10 @@ Image<T1> Image<T>::dx(bool IsAdvancedFilter) const
 //------------------------------------------------------------------------------------------
 template <class T>
 template <class T1>
-void Image<T>::dy(Image<T1>& result,bool IsAdvancedFilter) const
+double Image<T>::dy(Image<T1>& result,bool IsAdvancedFilter) const
 {
+	double start=timer();
+
 	if(matchDimension(result)==false)
 		result.allocate(imWidth,imHeight,nChannels);
 	result.setDerivative();
@@ -1024,7 +1026,7 @@ void Image<T>::dy(Image<T1>& result,bool IsAdvancedFilter) const
 
 		#pragma omp parallel num_threads(GLOBAL_nThreads)
 		{
-			#pragma omp for schedule(static)
+			#pragma omp for  
 			for(i=0;i<imHeight-1;i++)
 				for(j=0;j<imWidth;j++)
 				{
@@ -1040,6 +1042,9 @@ void Image<T>::dy(Image<T1>& result,bool IsAdvancedFilter) const
 			yFilter[i]/=12;
 		ImageProcessing::vfiltering(pData,data,imWidth,imHeight,nChannels,yFilter,2);
 	}
+
+	double end=timer();
+	return end-start;
 }
 
 template <class T>
@@ -1772,21 +1777,26 @@ void Image<T>::MultiplyAcross(const Image<T1>& image1,const Image<T2>& image2)
 
 template <class T>
 template <class T1>
-void Image<T>::Multiplywith(const Image<T1> &image1)
+double Image<T>::Multiplywith(const Image<T1> &image1)
 {
+	double start=timer();
+
 	if(matchDimension(image1)==false)
 	{
 		cout<<"Error in image dimensions--function Image<T>::Multiplywith()!"<<endl;
-		return;
+		return 0.0;
 	}
 	const T1*& pData1=image1.data();
 
 	#pragma omp parallel num_threads(GLOBAL_nThreads)
 	{
-		#pragma omp for schedule(static)
+		#pragma omp for  
 		for(int i=0;i<nElements;i++)
 			pData[i]*=pData1[i];
 	}
+
+	double end=timer();
+	return end-start;
 }
 
 template <class T>
@@ -1806,17 +1816,19 @@ void Image<T>::MultiplywithAcross(const Image<T1> &image1)
 
 
 template <class T>
-void Image<T>::Multiplywith(double value)
+double Image<T>::Multiplywith(double value)
 {
 	double start=timer();
+
 	#pragma omp parallel num_threads(GLOBAL_nThreads)
 	{
-		#pragma omp for schedule(static)
+		#pragma omp for  
 		for(int i=0;i<nElements;i++)
 			pData[i]*=value;
 	}
+
 	double end=timer();
-	GLOBAL_timingMap->insert( make_pair("MultiplyWith",to_string( end-start )) );
+	return end-start;
 }
 
 //------------------------------------------------------------------------------------------
@@ -1824,12 +1836,14 @@ void Image<T>::Multiplywith(double value)
 //------------------------------------------------------------------------------------------
 template <class T>
 template <class T1,class T2>
-void Image<T>::Add(const Image<T1>& image1,const Image<T2>& image2)
+double Image<T>::Add(const Image<T1>& image1,const Image<T2>& image2)
 {
+	double start=timer();
+
 	if(image1.matchDimension(image2)==false)
 	{
 		cout<<"Error in image dimensions--function Image<T>::Add()!"<<endl;
-		return;
+		return 0.0;
 	}
 	if(matchDimension(image1)==false)
 		allocate(image1);
@@ -1839,63 +1853,95 @@ void Image<T>::Add(const Image<T1>& image1,const Image<T2>& image2)
 
 	#pragma omp parallel num_threads(GLOBAL_nThreads)
 	{
-		#pragma omp for schedule(static)
+		#pragma omp for  
 		for(int i=0;i<nElements;i++)
 			pData[i]=pData1[i]+pData2[i];
 	}
+
+	double end=timer();
+	return end-start;
 }
 
 template <class T>
 template <class T1,class T2>
-void Image<T>::Add(const Image<T1>& image1,const Image<T2>& image2,double ratio)
+double Image<T>::Add(const Image<T1>& image1,const Image<T2>& image2,double ratio)
 {
+	double start=timer();
+
 	if(image1.matchDimension(image2)==false)
 	{
 		cout<<"Error in image dimensions--function Image<T>::Add()!"<<endl;
-		return;
+		return 0.0;
 	}
 	if(matchDimension(image1)==false)
 		allocate(image1);
 
 	const T1*& pData1=image1.data();
 	const T2*& pData2=image2.data();
-	for(int i=0;i<nElements;i++)
-		pData[i]=pData1[i]+pData2[i]*ratio;
+
+	#pragma omp parallel num_threads(GLOBAL_nThreads)
+	{
+		#pragma parallel for  
+		for(int i=0;i<nElements;i++)
+			pData[i]=pData1[i]+pData2[i]*ratio;
+	}
+
+	double end=timer();
+	return end-start;
 }
 
 template <class T>
 template <class T1>
-void Image<T>::Add(const Image<T1>& image1,const double ratio)
+double Image<T>::Add(const Image<T1>& image1,const double ratio)
 {
+	double start=timer();
+
 	if(matchDimension(image1)==false)
 	{
 		cout<<"Error in image dimensions--function Image<T>::Add()!"<<endl;
-		return;
+		return 0.0;
 	}
 	const T1*& pData1=image1.data();
 	for(int i=0;i<nElements;i++)
 		pData[i]+=pData1[i]*ratio;
+
+	double end=timer();
+	return end-start;
 }
 
 template <class T>
 template <class T1>
-void Image<T>::Add(const Image<T1>& image1)
+double Image<T>::Add(const Image<T1>& image1)
 {
+	double start=timer();
+
 	if(matchDimension(image1)==false)
 	{
 		cout<<"Error in image dimensions--function Image<T>::Add()!"<<endl;
-		return;
+		return 0.0;
 	}
 	const T1*& pData1=image1.data();
-	for(int i=0;i<nElements;i++)
-		pData[i]+=pData1[i];
+
+	#pragma omp parallel num_threads(GLOBAL_nThreads)
+	{
+		#pragma omp for  
+		for(int i=0;i<nElements;i++)
+			pData[i]+=pData1[i];
+	}
+
+	double end=timer();
+	return end-start;
 }
 
 template <class T>
-void Image<T>::Add(const T value)
+double Image<T>::Add(const T value)
 {
-	for(int i=0;i<nElements;i++)
-		pData[i]+=value;
+	#pragma omp parallel num_threads(GLOBAL_nThreads)
+	{
+		#pragma omp for  
+		for(int i=0;i<nElements;i++)
+			pData[i]+=value;
+	}
 }
 
 //------------------------------------------------------------------------------------------
@@ -1903,12 +1949,14 @@ void Image<T>::Add(const T value)
 //------------------------------------------------------------------------------------------
 template <class T>
 template <class T1,class T2>
-void Image<T>::Subtract(const Image<T1> &image1, const Image<T2> &image2)
+double Image<T>::Subtract(const Image<T1> &image1, const Image<T2> &image2)
 {
+	double start=timer();
+
 	if(image1.matchDimension(image2)==false)
 	{
 		cout<<"Error in image dimensions--function Image<T>::Subtract()!"<<endl;
-		return;
+		return 0.0;
 	}
 	if(matchDimension(image1)==false)
 		allocate(image1);
@@ -1917,10 +1965,13 @@ void Image<T>::Subtract(const Image<T1> &image1, const Image<T2> &image2)
 	const T2*& pData2=image2.data();
 	#pragma omp parallel num_threads(GLOBAL_nThreads)
 	{
-		#pragma omp for schedule(static)
+		#pragma omp for  
 		for(int i=0;i<nElements;i++)
 			pData[i]=(T)pData1[i]-pData2[i];
 	}
+
+	double end=timer();
+	return end-start;
 }
 
 //------------------------------------------------------------------------------------------
@@ -1973,8 +2024,10 @@ double Image<T>::norm2() const
 }
 
 template <class T>
-void Image<T>::threshold()
+double Image<T>::threshold()
 {
+	double start=timer();
+
 	T ImgMax;
 	if(IsFloat())
 		ImgMax = 1;
@@ -1982,10 +2035,13 @@ void Image<T>::threshold()
 		ImgMax = 255;
 	#pragma omp parallel num_threads(GLOBAL_nThreads)
 	{
-		#pragma omp for schedule(static)
+		#pragma omp for  
 		for(int i = 0;i<nPixels*nChannels;i++)
 			pData[i] = __min(__max(pData[i],0),ImgMax);
 	}
+
+	double end=timer();
+	return end-start;
 }
 
 template <class T>
@@ -2587,7 +2643,7 @@ double Image<T>::warpImageBicubicRef(const Image<T>& ref,Image<T>& output,const 
 
 	#pragma omp parallel num_threads(GLOBAL_nThreads)
 	{
-		#pragma omp for schedule(static)
+		#pragma omp for  
 		for(int i  = 0; i<height; i++)
 			for(int j = 0;j<width;j++)
 			{

@@ -25,14 +25,14 @@ public:
 	static Vector<double> LapPara;
 	static NoiseModel noiseModel;
 public:
-	static void getDxs(DImage& imdx,DImage& imdy,DImage& imdt,const DImage& im1,const DImage& im2);
+	static double getDxs(DImage& imdx,DImage& imdy,DImage& imdt,const DImage& im1,const DImage& im2);
 	static void SanityCheck(const DImage& imdx,const DImage& imdy,const DImage& imdt,double du,double dv);
 	static void warpFL(DImage& warpIm2,const DImage& Im1,const DImage& Im2,const DImage& vx,const DImage& vy);
 	static void warpFL(DImage& warpIm2,const DImage& Im1,const DImage& Im2,const DImage& flow);
 
 
 	static void genConstFlow(DImage& flow,double value,int width,int height);
-	static void genInImageMask(DImage& mask,const DImage& vx,const DImage& vy,int interval = 0);
+	static double genInImageMask(DImage& mask,const DImage& vx,const DImage& vy,int interval = 0);
 	static void genInImageMask(DImage& mask,const DImage& flow,int interval =0 );
 	static void SmoothFlowPDE(const DImage& Im1,const DImage& Im2, DImage& warpIm2,DImage& vx,DImage& vy,
 														 double alpha,int nOuterFPIterations,int nInnerFPIterations,int nCGIterations);
@@ -41,8 +41,8 @@ public:
 														 double alpha,int nOuterFPIterations,int nInnerFPIterations,int nSORIterations, int nCores);
 
 	static void estGaussianMixture(const DImage& Im1,const DImage& Im2,GaussianMixture& para,double prior = 0.9);
-	static void estLaplacianNoise(const DImage& Im1,const DImage& Im2,Vector<double>& para);
-	static void Laplacian(DImage& output,const DImage& input,const DImage& weight);
+	static double estLaplacianNoise(const DImage& Im1,const DImage& Im2,Vector<double>& para);
+	static double Laplacian(DImage& output,const DImage& input,const DImage& weight);
 	static void testLaplacian(int dim=3);
 
 	// function of coarse to fine optical flow
@@ -53,7 +53,7 @@ public:
 															int nOuterFPIterations,int nInnerFPIterations,int nCGIterations);
 
 	// function to convert image to features
-	static void im2feature(DImage& imfeature,const DImage& im);
+	static double im2feature(DImage& imfeature,const DImage& im);
 
 	// function to load optical flow
 	static bool LoadOpticalFlow(const char* filename,DImage& flow);
