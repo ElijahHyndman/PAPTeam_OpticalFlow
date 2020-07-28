@@ -23,6 +23,10 @@ using namespace std;
 // PAP global Variable for OpenMP
 int GLOBAL_nThreads;
 map<string, string>* GLOBAL_timingMap;
+double timer()
+{
+	return omp_get_wtime();
+}
 
 //OpticalFlow::InterpolationMethod OpticalFlow::interpolation = OpticalFlow::Bicubic;
 OpticalFlow::InterpolationMethod OpticalFlow::interpolation = OpticalFlow::Bilinear;
@@ -157,16 +161,21 @@ void OpticalFlow::genInImageMask(DImage &mask, const DImage &vx, const DImage &v
 	mask.reset();
 	pMask=mask.data();
 	double x,y;
-	for(int i=0;i<imHeight;i++)
-		for(int j=0;j<imWidth;j++)
-		{
-			int offset=i*imWidth+j;
-			y=i+pVx[offset];
-			x=j+pVy[offset];
-			if(x<interval  || x>imWidth-1-interval || y<interval || y>imHeight-1-interval)
-				continue;
-			pMask[offset]=1;
-		}
+
+	#pragma omp parallel num_threads(GLOBAL_nThreads)
+	{
+		#pragma omp for schedule(static)
+		for(int i=0;i<imHeight;i++)
+			for(int j=0;j<imWidth;j++)
+			{
+				int offset=i*imWidth+j;
+				y=i+pVx[offset];
+				x=j+pVy[offset];
+				if(x<interval  || x>imWidth-1-interval || y<interval || y>imHeight-1-interval)
+					continue;
+				pMask[offset]=1;
+			}
+	}
 }
 
 void OpticalFlow::genInImageMask(DImage &mask, const DImage &flow,int interval)
@@ -285,12 +294,17 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 			vxData=vx.data();
 			vyData=vy.data();
 			double power_alpha = 0.5;
-			for(int i=0;i<nPixels;i++)
+
+			#pragma omp parallel
 			{
-				temp=uxData[i]*uxData[i]+uyData[i]*uyData[i]+vxData[i]*vxData[i]+vyData[i]*vyData[i];
-				//phiData[i]=power_alpha*pow(temp+varepsilon_phi,power_alpha-1);
-				phiData[i] = 0.5/sqrt(temp+varepsilon_phi);
-				//phiData[i] = 1/(power_alpha+temp);
+				#pragma omp for schedule(static)
+				for(int i=0;i<nPixels;i++)
+				{
+					temp=uxData[i]*uxData[i]+uyData[i]*uyData[i]+vxData[i]*vxData[i]+vyData[i]*vyData[i];
+					//phiData[i]=power_alpha*pow(temp+varepsilon_phi,power_alpha-1);
+					phiData[i] = 0.5/sqrt(temp+varepsilon_phi);
+					//phiData[i] = 1/(power_alpha+temp);
+				}
 			}
 
 			// compute the nonlinear term of psi
@@ -333,33 +347,37 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 					}
 				}
 			else // Multiple Channels
-				for(int i=0;i<nPixels;i++)
-					for(int k=0;k<nChannels;k++)
-					{
-						// Each pixel is nChannels, this channel is pixel*channels_per_pixel + channel #
-						int offset=i*nChannels+k;
-						temp=imdtData[offset]+imdxData[offset]*duData[i]+imdyData[offset]*dvData[i];
-						//if(temp*temp<0.04)
-						 // psiData[offset]=1/(2*sqrt(temp*temp+varepsilon_psi));
-						//psiData[offset] =  _a*_b/(1+_a*temp*temp);
-						temp *= temp;
-						switch(noiseModel)
+				#pragma omp parallel
+				{
+					#pragma omp for schedule(static)
+					for(int i=0;i<nPixels;i++)
+						for(int k=0;k<nChannels;k++)
 						{
-						case GMixture:
-							prob1 = GMPara.Gaussian(temp,0,k)*GMPara.alpha[k];
-							prob2 = GMPara.Gaussian(temp,1,k)*(1-GMPara.alpha[k]);
-							prob11 = prob1/(2*GMPara.sigma_square[k]);
-							prob22 = prob2/(2*GMPara.beta_square[k]);
-							psiData[offset] = (prob11+prob22)/(prob1+prob2);
-							break;
-						case Lap:
-							if(LapPara[k]<1E-20)
-								continue;
-							//psiData[offset]=1/(2*sqrt(temp+varepsilon_psi)*LapPara[k]);
-                            psiData[offset]=1/(2*sqrt(temp+varepsilon_psi));
-							break;
+							// Each pixel is nChannels, this channel is pixel*channels_per_pixel + channel #
+							int offset=i*nChannels+k;
+							temp=imdtData[offset]+imdxData[offset]*duData[i]+imdyData[offset]*dvData[i];
+							//if(temp*temp<0.04)
+							 // psiData[offset]=1/(2*sqrt(temp*temp+varepsilon_psi));
+							//psiData[offset] =  _a*_b/(1+_a*temp*temp);
+							temp *= temp;
+							switch(noiseModel)
+							{
+							case GMixture:
+								prob1 = GMPara.Gaussian(temp,0,k)*GMPara.alpha[k];
+								prob2 = GMPara.Gaussian(temp,1,k)*(1-GMPara.alpha[k]);
+								prob11 = prob1/(2*GMPara.sigma_square[k]);
+								prob22 = prob2/(2*GMPara.beta_square[k]);
+								psiData[offset] = (prob11+prob22)/(prob1+prob2);
+								break;
+							case Lap:
+								if(LapPara[k]<1E-20)
+									continue;
+								//psiData[offset]=1/(2*sqrt(temp+varepsilon_psi)*LapPara[k]);
+	                            psiData[offset]=1/(2*sqrt(temp+varepsilon_psi));
+								break;
+							}
 						}
-					}
+				}//end parallel
 			// prepare the components of the large linear system
 			ImDxy.Multiply(Psi_1st,imdx,imdy);
 			ImDx2.Multiply(Psi_1st,imdx,imdx);
@@ -863,17 +881,22 @@ void OpticalFlow::estLaplacianNoise(const DImage& Im1,const DImage& Im2,Vector<d
 	for(int k = 0;k<nChannels;k++)
 		total[k] = 0;
 
-	for(int i =0;i<Im1.npixels();i++)
-		for(int k = 0;k<nChannels;k++)
-		{
-			int offset = i*nChannels+k;
-			temp= fabs(Im1.data()[offset]-Im2.data()[offset]);
-			if(temp>0 && temp<1000000)
+	#pragma omp parallel num_threads(GLOBAL_nThreads)
+	{
+		#pragma omp for schedule(static)
+		for(int i =0;i<Im1.npixels();i++)
+			for(int k = 0;k<nChannels;k++)
 			{
-				para[k] += temp;
-				total[k]++;
+				int offset = i*nChannels+k;
+				temp= fabs(Im1.data()[offset]-Im2.data()[offset]);
+				if(temp>0 && temp<1000000)
+				{
+					para[k] += temp;
+					total[k]++;
+				}
 			}
-		}
+		}//end parallel
+
 	for(int k = 0;k<nChannels;k++)
 	{
 		if(total[k]==0)
@@ -907,38 +930,49 @@ void OpticalFlow::Laplacian(DImage &output, const DImage &input, const DImage& w
 
 
 	// horizontal filtering
-	for(int i=0;i<height;i++)
-		for(int j=0;j<width-1;j++)
-		{
-			int offset=i*width+j;
-			fooData[offset]=(inputData[offset+1]-inputData[offset])*weightData[offset];
-		}
-	for(int i=0;i<height;i++)
-		for(int j=0;j<width;j++)
-		{
-			int offset=i*width+j;
-			if(j<width-1)
-				outputData[offset]-=fooData[offset];
-			if(j>0)
-				outputData[offset]+=fooData[offset-1];
-		}
+	#pragma omp parallel num_threads(GLOBAL_nThreads)
+	{
+		#pragma omp for schedule(static)
+		for(int i=0;i<height;i++)
+			for(int j=0;j<width-1;j++)
+			{
+				int offset=i*width+j;
+				fooData[offset]=(inputData[offset+1]-inputData[offset])*weightData[offset];
+			}
+		#pragma omp for schedule(static)
+		for(int i=0;i<height;i++)
+			for(int j=0;j<width;j++)
+			{
+				int offset=i*width+j;
+				if(j<width-1)
+					outputData[offset]-=fooData[offset];
+				if(j>0)
+					outputData[offset]+=fooData[offset-1];
+			}
+	}
 	foo.reset();
+
 	// vertical filtering
-	for(int i=0;i<height-1;i++)
-		for(int j=0;j<width;j++)
-		{
-			int offset=i*width+j;
-			fooData[offset]=(inputData[offset+width]-inputData[offset])*weightData[offset];
-		}
-	for(int i=0;i<height;i++)
-		for(int j=0;j<width;j++)
-		{
-			int offset=i*width+j;
-			if(i<height-1)
-				outputData[offset]-=fooData[offset];
-			if(i>0)
-				outputData[offset]+=fooData[offset-width];
-		}
+	#pragma omp parallel num_threads(GLOBAL_nThreads)
+	{
+		#pragma omp for schedule(static)
+		for(int i=0;i<height-1;i++)
+			for(int j=0;j<width;j++)
+			{
+				int offset=i*width+j;
+				fooData[offset]=(inputData[offset+width]-inputData[offset])*weightData[offset];
+			}
+		#pragma omp for schedule(static)
+		for(int i=0;i<height;i++)
+			for(int j=0;j<width;j++)
+			{
+				int offset=i*width+j;
+				if(i<height-1)
+					outputData[offset]-=fooData[offset];
+				if(i>0)
+					outputData[offset]+=fooData[offset-width];
+			}
+	}
 }
 
 void OpticalFlow::testLaplacian(int dim)
@@ -1054,15 +1088,17 @@ void OpticalFlow::Coarse2FineFlow(DImage &vx, DImage &vy, DImage &warpI2,const D
 					and passed back to Python using the TIMING_PROFILE map
 */
 //-------------------------------------------------------
-void myfunc(){cout<<"hello";}
+void myfunc(){cout<<"helol";}
 void OpticalFlow::Coarse2FineFlow(map<string,string>* TIMING_PROFILE, DImage &vx, DImage &vy, DImage &warpI2,const DImage &Im1, const DImage &Im2, int pyramidLevels, int nCores)
 {
-	// Set global number of threads to use with OpenMP
 	// ASSERT: Coarse2FineFlow will always execute before Image.h > Global Variables will always be defined
+	// Set global number of threads to use with OpenMP
 	GLOBAL_nThreads=nCores;
 	GLOBAL_timingMap=TIMING_PROFILE;
 
 	double TOTAL_BEGIN=timer();
+
+
 	// Hardcoded values
   double alpha = 0.012;
   double ratio = 0.75;
@@ -1095,6 +1131,7 @@ void OpticalFlow::Coarse2FineFlow(map<string,string>* TIMING_PROFILE, DImage &vx
 		break;
 	}
 
+	// Accumulators
 	double DURATION_TOTAL_PYRAMID=0.0;
 	double DURATION_TOTAL_FLOW=0.0;
 
@@ -1290,16 +1327,20 @@ void OpticalFlow::im2feature(DImage &imfeature, const DImage &im)
 		grayImage.dx(imdx,true);
 		grayImage.dy(imdy,true);
 		_FlowPrecision* data=imfeature.data();
-		for(int i=0;i<height;i++)
-			for(int j=0;j<width;j++)
-			{
-				int offset=i*width+j;
-				data[offset*5]=grayImage.data()[offset];
-				data[offset*5+1]=imdx.data()[offset];
-				data[offset*5+2]=imdy.data()[offset];
-				data[offset*5+3]=im.data()[offset*3+1]-im.data()[offset*3];
-				data[offset*5+4]=im.data()[offset*3+1]-im.data()[offset*3+2];
-			}
+		#pragma omp Parallel
+		{
+			#pragma omp for schedule(static)
+			for(int i=0;i<height;i++)
+				for(int j=0;j<width;j++)
+				{
+					int offset=i*width+j;
+					data[offset*5]=grayImage.data()[offset];
+					data[offset*5+1]=imdx.data()[offset];
+					data[offset*5+2]=imdy.data()[offset];
+					data[offset*5+3]=im.data()[offset*3+1]-im.data()[offset*3];
+					data[offset*5+4]=im.data()[offset*3+1]-im.data()[offset*3+2];
+				}
+		}
 	}
 	else
 		imfeature.copyData(im);

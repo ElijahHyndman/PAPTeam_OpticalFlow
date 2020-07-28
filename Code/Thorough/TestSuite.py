@@ -76,5 +76,5 @@ def TestRun(Progression='Default',ImagesPerCollection=3,pyramidLevels=3,threadPr
 # === Running Tests
 
 begin=time.perf_counter()
-TestRun(Progression='Default',ImagesPerCollection=10,pyramidLevels=6,threadProgression=(1,2,4),Repetitions=1,outputSuffix='_Original')
+TestRun(Progression='Heavy',ImagesPerCollection=3,pyramidLevels=6,threadProgression=(1,2,4),Repetitions=1,outputSuffix='_Original')
 print('Program Execution time: {:.2f}'.format(time.perf_counter()-begin))

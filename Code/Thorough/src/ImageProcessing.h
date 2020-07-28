@@ -9,6 +9,14 @@
 #include "stdlib.h"
 #include <typeinfo>
 
+#include <map>
+#include <omp.h>
+
+//PAP_Team: Global Variables set inside OpticalFlow.cpp
+extern int GLOBAL_nThreads;
+//extern map<string,string>* GLOBAL_timingMap;
+extern double timer();
+
 //----------------------------------------------------------------------------------
 // class to handle basic image processing functions
 // this is a collection of template functions. These template functions are
@@ -201,6 +209,7 @@ inline void ImageProcessing::BilinearInterpolate_transpose(const T1* pInput,int 
 // this is the most general function for reszing an image with a varying nChannels
 // bilinear interpolation is used for now. It might be replaced by other (bicubic) interpolation methods
 //------------------------------------------------------------------------------------------------------------
+// This one is used in Image.h
 template <class T1,class T2>
 void ImageProcessing::ResizeImage(const T1* pSrcImage,T2* pDstImage,int SrcWidth,int SrcHeight,int nChannels,double Ratio)
 {
@@ -211,15 +220,19 @@ void ImageProcessing::ResizeImage(const T1* pSrcImage,T2* pDstImage,int SrcWidth
 
 	double x,y;
 
-	for(int i=0;i<DstHeight;i++)
-		for(int j=0;j<DstWidth;j++)
-		{
-			x=(double)(j+1)/Ratio-1;
-			y=(double)(i+1)/Ratio-1;
+	#pragma omp parallel num_threads(GLOBAL_nThreads)
+	{
+		#pragma omp for schedule(static)
+		for(int i=0;i<DstHeight;i++)
+			for(int j=0;j<DstWidth;j++)
+			{
+				x=(double)(j+1)/Ratio-1;
+				y=(double)(i+1)/Ratio-1;
 
-			// bilinear interpolation
-			BilinearInterpolate(pSrcImage,SrcWidth,SrcHeight,nChannels,x,y,pDstImage+(i*DstWidth+j)*nChannels);
-		}
+				// bilinear interpolation
+				BilinearInterpolate(pSrcImage,SrcWidth,SrcHeight,nChannels,x,y,pDstImage+(i*DstWidth+j)*nChannels);
+			}
+	}
 }
 
 template <class T1,class T2>
@@ -252,19 +265,24 @@ void ImageProcessing::hfiltering(const T1* pSrcImage,T2* pDstImage,int width,int
 	T2* pBuffer;
 	double w;
 	int i,j,l,k,offset,jj;
-	for(i=0;i<height;i++)
-		for(j=0;j<width;j++)
-		{
-			offset=i*width*nChannels;
-			pBuffer=pDstImage+offset+j*nChannels;
-			for(l=-fsize;l<=fsize;l++)
+
+	#pragma omp parallel num_threads(GLOBAL_nThreads)
+	{
+		#pragma omp for schedule(static)
+		for(i=0;i<height;i++)
+			for(j=0;j<width;j++)
 			{
-				w=pfilter1D[l+fsize];
-				jj=EnforceRange(j+l,width);
-				for(k=0;k<nChannels;k++)
-					pBuffer[k]+=pSrcImage[offset+jj*nChannels+k]*w;
+				offset=i*width*nChannels;
+				pBuffer=pDstImage+offset+j*nChannels;
+				for(l=-fsize;l<=fsize;l++)
+				{
+					w=pfilter1D[l+fsize];
+					jj=EnforceRange(j+l,width);
+					for(k=0;k<nChannels;k++)
+						pBuffer[k]+=pSrcImage[offset+jj*nChannels+k]*w;
+				}
 			}
-		}
+	}//end parallel
 }
 
 //------------------------------------------------------------------------------------------------------------
@@ -342,18 +360,23 @@ void ImageProcessing::vfiltering(const T1* pSrcImage,T2* pDstImage,int width,int
 	T2* pBuffer;
 	double w;
 	int i,j,l,k,offset,ii;
-	for(i=0;i<height;i++)
-		for(j=0;j<width;j++)
-		{
-			pBuffer=pDstImage+(i*width+j)*nChannels;
-			for(l=-fsize;l<=fsize;l++)
+
+	#pragma omp parallel num_threads(GLOBAL_nThreads)
+	{
+		#pragma omp for schedule(static)
+		for(i=0;i<height;i++)
+			for(j=0;j<width;j++)
 			{
-				w=pfilter1D[l+fsize];
-				ii=EnforceRange(i+l,height);
-				for(k=0;k<nChannels;k++)
-					pBuffer[k]+=pSrcImage[(ii*width+j)*nChannels+k]*w;
+				pBuffer=pDstImage+(i*width+j)*nChannels;
+				for(l=-fsize;l<=fsize;l++)
+				{
+					w=pfilter1D[l+fsize];
+					ii=EnforceRange(i+l,height);
+					for(k=0;k<nChannels;k++)
+						pBuffer[k]+=pSrcImage[(ii*width+j)*nChannels+k]*w;
+				}
 			}
-		}
+	}
 }
 
 //------------------------------------------------------------------------------------------------------------
@@ -493,22 +516,26 @@ template <class T1,class T2>
 void ImageProcessing::warpImageFlow(T1 *pWarpIm2, const T1 *pIm1, const T1 *pIm2, const T2 *pFlow, int width, int height, int nChannels)
 {
 	memset(pWarpIm2,0,sizeof(T1)*width*height*nChannels);
-	for(int i=0;i<height;i++)
-		for(int j=0;j<width;j++)
-		{
-			int offset=i*width+j;
-			double x,y;
-			y=i+pFlow[offset*2+1];
-			x=j+pFlow[offset*2];
-			offset*=nChannels;
-			if(x<0 || x>width-1 || y<0 || y>height-1)
+	#pragma omp parallel num_threads(GLOBAL_nThreads)
+	{
+		#pragma omp for schedule(static)
+		for(int i=0;i<height;i++)
+			for(int j=0;j<width;j++)
 			{
-				for(int k=0;k<nChannels;k++)
-					pWarpIm2[offset+k]=pIm1[offset+k];
-				continue;
+				int offset=i*width+j;
+				double x,y;
+				y=i+pFlow[offset*2+1];
+				x=j+pFlow[offset*2];
+				offset*=nChannels;
+				if(x<0 || x>width-1 || y<0 || y>height-1)
+				{
+					for(int k=0;k<nChannels;k++)
+						pWarpIm2[offset+k]=pIm1[offset+k];
+					continue;
+				}
+				BilinearInterpolate(pIm2,width,height,nChannels,x,y,pWarpIm2+offset);
 			}
-			BilinearInterpolate(pIm2,width,height,nChannels,x,y,pWarpIm2+offset);
-		}
+	}
 }
 
 template <class T1,class T2>
