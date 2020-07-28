@@ -360,8 +360,7 @@ void ImageProcessing::vfiltering(const T1* pSrcImage,T2* pDstImage,int width,int
 	memset(pDstImage,0,sizeof(T2)*width*height*nChannels);
 	T2* pBuffer;
 	double w;
-	//int i,j,l,k,offset,ii;
-	int i,j,l,k,ii;
+	int i,j,l,k,offset,ii;
 
 	#pragma omp parallel num_threads(GLOBAL_nThreads)
 	{

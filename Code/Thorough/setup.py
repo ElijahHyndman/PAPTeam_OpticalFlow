@@ -26,7 +26,7 @@ ext_modules=[
         sourcefiles,
         extra_compile_args=['-fopenmp','-O3'],
         extra_link_args=['-fopenmp','-O3'],
-        include_dirs=[numpy.get_include()]
+        include_dirs=[numpy.get_include()],
     )
 ]
 
@@ -35,6 +35,6 @@ setup(
     version="1.0",
     description="Python wrapper for the Coarse2Fine Optical Flow code.",
     author="Deepak Pathak",
-    ext_modules= cythonize(ext_modules),#cythonize(extensions),
+    ext_modules= cythonize(ext_modules,gdb_debug=True),#cythonize(extensions),
     include_dirs=[numpy.get_include()]
 )

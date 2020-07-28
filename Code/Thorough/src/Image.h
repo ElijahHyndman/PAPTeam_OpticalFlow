@@ -461,6 +461,7 @@ public:
 };
 
 
+
 typedef Image<unsigned char> BiImage;
 typedef Image<unsigned char> UCImage;
 typedef Image<short int> IntImage;
@@ -971,6 +972,8 @@ template <class T>
 template <class T1>
 double Image<T>::dx(Image<T1>& result,bool IsAdvancedFilter) const
 {
+	double start=timer();
+
 	if(matchDimension(result)==false)
 		result.allocate(imWidth,imHeight,nChannels);
 	result.reset();
@@ -997,6 +1000,9 @@ double Image<T>::dx(Image<T1>& result,bool IsAdvancedFilter) const
 			xFilter[i]/=12;
 		ImageProcessing::hfiltering(pData,data,imWidth,imHeight,nChannels,xFilter,2);
 	}
+
+	double end=timer();
+	return end-start;
 }
 
 template <class T>
@@ -1210,7 +1216,6 @@ template <class T>
 template <class T1>
 void Image<T>::GaussianSmoothing(Image<T1>& image,double sigma,int fsize) const
 {
-	double start=timer();
 	Image<T1> foo;
 	// constructing the 1D gaussian filter
 	double* gFilter;
@@ -1231,9 +1236,6 @@ void Image<T>::GaussianSmoothing(Image<T1>& image,double sigma,int fsize) const
 	imfilter_hv(image,gFilter,fsize,gFilter,fsize);
 
 	delete[] gFilter;
-
-	double end=timer();
-	//GLOBAL_timingMap->insert( make_pair("Gaussian Smoothing",to_string( end-start )) );
 }
 
 //------------------------------------------------------------------------------------------
@@ -1881,7 +1883,7 @@ double Image<T>::Add(const Image<T1>& image1,const Image<T2>& image2,double rati
 
 	#pragma omp parallel num_threads(GLOBAL_nThreads)
 	{
-		#pragma parallel for
+		#pragma omp parallel for
 		for(int i=0;i<nElements;i++)
 			pData[i]=pData1[i]+pData2[i]*ratio;
 	}
@@ -2640,7 +2642,9 @@ double Image<T>::warpImageBicubicRef(const Image<T>& ref,Image<T>& output,const 
 	double a[4][4];
 	int offsets[2][2];
 
-	T ImgMax;
+	// stupid lines to add to fix compiler issue
+	T ImgMax=0;
+	ImgMax++;
 	if(IsFloat())
 		ImgMax = 1;
 	else

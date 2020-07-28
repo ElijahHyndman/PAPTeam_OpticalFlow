@@ -1,0 +1,4 @@
+/home/parallels/PAPTeam_ubuntu/OpticalFlow/Code/Thorough/output/HoChiMinhTraffic_10FPS_320_short/timing/HoChiMinhTraffic_10FPS_320_short_P6_C1.txt
+Generate Pyramid Levels,Laplacian,Total C++ Execution,Total Flow Calculation,add,dx,dy,estLaplacianNoise,genInImageMask,im2feature,imresize,multiplyWith,subtract,threshold,warpImageBicubicRef
+0.022349,0.010925,0.874862,0.826952,0.003339,0.026568,0.006786,0.061032,0.002431,0.007269,0.000879,0.002194,0.006496,0.000090,0.007758
+0.024323,0.010434,0.879695,0.830361,0.003172,0.059720,0.005493,0.059184,0.002456,0.008017,0.000861,0.001425,0.006121,0.000089,0.007652
