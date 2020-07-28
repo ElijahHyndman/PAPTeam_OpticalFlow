@@ -67,9 +67,17 @@ def TestRun(Progression='Default',ImagesPerCollection=3,pyramidLevels=3,threadPr
             for numCores in threadProgression:
                 print('+'*15,numCores,'threads','+'*15,'\n')
                 for IMAGEPAIR in ImagePairs[:ImagesPerCollection]:
-                   print(IMAGEPAIR.asStorageString(' -> ',long=False), 'Image [',imageIndex,'/',totalImages,']')
-                   CalculateOpticalFlow(IMAGEPAIR,pyramidLevels,numCores,outputSuffix)
-                   imageIndex+=1
+
+                    # === DEBUG: Print Calculation Header
+                    progressString='Image ['+str(imageIndex)+'/'+str(totalImages)+']'
+                    print( '='*10, IMAGEPAIR.asStorageString(' -> ',long=False), '='*10 , progressString, '='*3)
+
+                    # === Perform calculation
+                    CalculateOpticalFlow(IMAGEPAIR,pyramidLevels,numCores,outputSuffix)
+
+                    # === DEBUG: Print Calculation footer
+                    print( '=' * 60, '\n')
+                    imageIndex+=1
     # == End Test Run
 
 

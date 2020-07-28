@@ -506,7 +506,8 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 
 	}
 	double smoothFlowEnd = timer();
-	cout<<"Smooth Flow Time: "<<smoothFlowEnd-smoothFlowStart;
+	// DEBUG: display the amount of time spent on smooth flow calculation for this pyramid level
+	//cout<<"Smooth Flow Time: "<<smoothFlowEnd-smoothFlowStart;
 }	// End SmoothFlowSOR
 
 
@@ -1077,9 +1078,6 @@ void OpticalFlow::Coarse2FineFlow(map<string,string>* TIMING_PROFILE, DImage &vx
 	for(int k=GPyramid1.nlevels()-1;k>=0;k--)
 	{
 
-		if(IsDisplay)
-			cout << "P["<<k<<"] ";
-
 		// === Pyramid Level: Image presets calculated by GPyramid
 		int width=GPyramid1.Image(k).width();
 		int height=GPyramid1.Image(k).height();
@@ -1119,8 +1117,16 @@ void OpticalFlow::Coarse2FineFlow(map<string,string>* TIMING_PROFILE, DImage &vx
 		double DURATION_IMAGE_FLOW=IMAGE_FLOW_END-IMAGE_FLOW_BEGIN;
 		DURATION_TOTAL_FLOW+=DURATION_IMAGE_FLOW;
 
+		// DEBUG: bump down to next line for pyramid timing output
+		//if(IsDisplay)
+		//	cout << endl;
+
+		// DEBUG: Live Feed of what pyramid level we are working on
 		if(IsDisplay)
-			cout << endl;
+			if(k == 0)
+				cout<<"P["<<to_string(k)<<"] !\n"<<flush;
+			else
+				cout<<"P["<<to_string(k)<<"]..."<<flush;
 	}
 
 	// === Output: warp image 2
@@ -1146,7 +1152,7 @@ void OpticalFlow::Coarse2FineFlow(map<string,string>* TIMING_PROFILE, DImage &vx
 	GLOBAL_timingMap->insert( make_pair("genInImageMask",to_string( total_genInImageMask )) );
 	GLOBAL_timingMap->insert( make_pair("Laplacian",to_string( total_Laplacian )) );
 	GLOBAL_timingMap->insert( make_pair("estLaplacianNoise",to_string( total_estLaplacianNoise )) );
-	// Resetting the global variables. "Dont try global variables, kids" 
+	// Resetting the global variables. "Dont try global variables, kids"
 	TotalExecution=0.0;
 	GeneratePyramidLevels=0.0;
 	total_im2feature=0.0;

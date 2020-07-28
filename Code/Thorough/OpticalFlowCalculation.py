@@ -74,9 +74,23 @@ def CalculateOpticalFlow(imagePair, pyramidLevels, numCores, optionalOutputSuffi
     # === Output Vectors to array
     flow = np.concatenate((u[..., None], v[..., None]), axis=2)
 
-    print(timingDictionary,'\n')
+    debugTimingDiagnostics(timingDictionary)
+    # === DEBUG: print the timing contents of this calculation to terminal
+    #print(timingDictionary.items())
+
     # === All of the output Storing
     generateOutput(imagePair, pyramidLevels, numCores, flow, imDimensions, timingDictionary, optionalOutputSuffix)
+
+def debugTimingDiagnostics(timingDictionary):
+    # Copy values to a dictionary that we can edit freely
+    timing=timingDictionary.copy()
+    # Items that will be displayed separately from the rest of the timing dictionary
+    separatedKeys=('Total C++ Execution','Total Flow Calculation')
+    # Display the separatedKeys
+    for item in separatedKeys:
+        print(item+': ',timing.pop(item))
+    # Display the rest
+    print(timing)
 
 
 def generateOutput(imagePair, nLevels, nCores, flow, imDimensions, timingDictionary, optionalOutputSuffix):

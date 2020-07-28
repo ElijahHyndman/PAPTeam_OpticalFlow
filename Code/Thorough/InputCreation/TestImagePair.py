@@ -41,8 +41,9 @@ class TestImagePair:
         if long:
             storageString=self.BEFORE.IMAGE_PATH+delimiterString+self.AFTER.IMAGE_PATH
         else:
-            storageString=self.BEFORE.IMAGE_PARENT+'/'+self.BEFORE.IMAGE_NAME+ \
-                            delimiterString+ \
-                            self.AFTER.IMAGE_PARENT+'/'+self.AFTER.IMAGE_NAME
+            collectionName=self.BEFORE.IMAGE_PARENT
+            frame_a=self.BEFORE.IMAGE_NAME
+            frame_b=self.AFTER.IMAGE_NAME
+            storageString=collectionName+'/'+frame_a+delimiterString+frame_b
         return storageString
 # End TestImagePair
