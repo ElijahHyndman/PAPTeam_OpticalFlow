@@ -70,7 +70,7 @@ def TestRun(Progression='Default',ImagesPerCollection=3,pyramidLevels=3,threadPr
 
                     # === DEBUG: Print Calculation Header
                     progressString='Image ['+str(imageIndex)+'/'+str(totalImages)+']'
-                    print( '='*10, IMAGEPAIR.asStorageString(' -> ',long=False), '='*10 , progressString, '='*3)
+                    print( '='*10, '['+IMAGEPAIR.asStorageString(' -> ',long=False)+']', '='*10 , progressString, '='*10)
 
                     # === Perform calculation
                     CalculateOpticalFlow(IMAGEPAIR,pyramidLevels,numCores,outputSuffix)

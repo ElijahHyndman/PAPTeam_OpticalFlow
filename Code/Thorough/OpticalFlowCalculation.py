@@ -88,7 +88,7 @@ def debugTimingDiagnostics(timingDictionary):
     separatedKeys=('Total C++ Execution','Total Flow Calculation')
     # Display the separatedKeys
     for item in separatedKeys:
-        print(item+': ',timing.pop(item))
+        print('--'+item+': ',timing.pop(item))
     # Display the rest
     print(timing)
 
