@@ -1218,7 +1218,7 @@ double OpticalFlow::im2feature(DImage &imfeature, const DImage &im)
 		total_dx+=grayImage.dx(imdx,true);
 		total_dy+=grayImage.dy(imdy,true);
 		_FlowPrecision* data=imfeature.data();
-		#pragma omp Parallel
+		#pragma omp parallel num_threads(GLOBAL_nThreads)
 		{
 			#pragma omp for
 			for(int i=0;i<height;i++)
