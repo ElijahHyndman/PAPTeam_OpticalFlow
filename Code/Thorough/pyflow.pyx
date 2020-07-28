@@ -10,6 +10,9 @@ cimport coarse2Fine
 from libcpp.map cimport map
 from libcpp.string cimport string
 
+from cython.parallel cimport parallel
+cimport openmp
+
 # Author: Deepak Pathak (c) 2016
 
 

@@ -24,9 +24,9 @@ ext_modules=[
     Extension(
         "pyflow",
         sourcefiles,
-        extra_compile_args=['-fopenmp','-O3'],
-        extra_link_args=['-fopenmp','-O3'],
-        include_dirs=[numpy.get_include()]
+        extra_compile_args=['-fopenmp'],
+        extra_link_args=['-fopenmp'],
+        include_dirs=[numpy.get_include()],
     )
 ]
 
