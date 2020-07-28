@@ -9,6 +9,7 @@
 //Elijah
 #include <chrono>
 #include <map>
+#include <bits/stdc++.h>
 using namespace std::chrono;
 using namespace std;
 
@@ -35,6 +36,7 @@ GaussianMixture OpticalFlow::GMPara;
 Vector<double> OpticalFlow::LapPara;
 
 double 	TotalExecution=0.0,
+				TotalGetDxs=0.0,
 				GeneratePyramidLevels=0.0,
 				total_im2feature=0.0,
 				total_Multiplywith=0.0,
@@ -255,8 +257,10 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 	//--------------------------------------------------------------------------
 	for(int count=0;count<nOuterFPIterations;count++)
 	{
+		TotalGetDxs=timer();
 		// compute the gradient
-		 getDxs(imdx,imdy,imdt,Im1,warpIm2);
+		getDxs(imdx,imdy,imdt,Im1,warpIm2);
+		TotalGetDxs=timer()-TotalGetDxs;
 
 		// generate the mask to set the weight of the pxiels moving outside of the image boundary to be zero
 		total_genInImageMask+=genInImageMask(mask,u,v);
@@ -882,9 +886,9 @@ double OpticalFlow::estLaplacianNoise(const DImage& Im1,const DImage& Im2,Vector
 	for(int k = 0;k<nChannels;k++)
 		total[k] = 0;
 
-	#pragma omp parallel num_threads(GLOBAL_nThreads)
-	{
-		#pragma omp for
+	//#pragma omp parallel num_threads(GLOBAL_nThreads)
+	//{
+		//#pragma omp for
 		for(int i =0;i<Im1.npixels();i++)
 			for(int k = 0;k<nChannels;k++)
 			{
@@ -901,7 +905,7 @@ double OpticalFlow::estLaplacianNoise(const DImage& Im1,const DImage& Im2,Vector
 					total[k]++;
 				}
 			}
-	}//end parallel
+	//}//end parallel
 
 
 	for(int k = 0;k<nChannels;k++)
@@ -1074,10 +1078,20 @@ void OpticalFlow::Coarse2FineFlow(map<string,string>* TIMING_PROFILE, DImage &vx
 
 	// Accumulators
 	double DURATION_TOTAL_FLOW=0.0;
+	double pyramid_timer=0.0;
 
 	// Calculate Optical Flow on each level of pyramid
 	for(int k=GPyramid1.nlevels()-1;k>=0;k--)
 	{
+		if(IsDisplay)
+		{
+			if(k == 0)
+				cout<<"P["<<to_string(k)<<"] "<<flush;
+			else
+				cout<<"P["<<to_string(k)<<"]"<<flush;
+		}
+
+		pyramid_timer=timer();
 
 		// === Pyramid Level: Image presets calculated by GPyramid
 		int width=GPyramid1.Image(k).width();
@@ -1118,19 +1132,12 @@ void OpticalFlow::Coarse2FineFlow(map<string,string>* TIMING_PROFILE, DImage &vx
 		double DURATION_IMAGE_FLOW=IMAGE_FLOW_END-IMAGE_FLOW_BEGIN;
 		DURATION_TOTAL_FLOW+=DURATION_IMAGE_FLOW;
 
-		// DEBUG: bump down to next line for pyramid timing output
-		//if(IsDisplay)
-		//	cout << endl;
-
-		// DEBUG: Live Feed of what pyramid level we are working on
-		if(IsDisplay)
-		{
-			if(k == 0)
-				cout<<"P["<<to_string(k)<<"] !\n"<<flush;
-			else
-				cout<<"P["<<to_string(k)<<"]..."<<flush;
-		}
+		// DEBUG: print elapsed time for this pyramid level
+		pyramid_timer=timer()-pyramid_timer;
+		cout<<"("<< fixed<<setprecision(1)<<pyramid_timer <<"s) "<<flush;
 	}
+
+	printf("! \n");
 
 	// === Output: warp image 2
 	total_warpImageBicubicRef+= Im2.warpImageBicubicRef(Im1,warpI2,vx,vy);
@@ -1141,8 +1148,9 @@ void OpticalFlow::Coarse2FineFlow(map<string,string>* TIMING_PROFILE, DImage &vx
 	// === Output: Calculate the durations of the entire pyramid
 
 	// === Output: Store the values
-	GLOBAL_timingMap->insert( make_pair("Total Flow Calculation",to_string( DURATION_TOTAL_FLOW )) );
-	GLOBAL_timingMap->insert( make_pair("Total C++ Execution",to_string( TotalExecution )) );
+	GLOBAL_timingMap->insert( make_pair("_Total Flow Calculation",to_string( DURATION_TOTAL_FLOW )) );
+	GLOBAL_timingMap->insert( make_pair("_Total C++ Execution",to_string( TotalExecution )) );
+	GLOBAL_timingMap->insert( make_pair("_Total getDxs",to_string( TotalGetDxs )) );
 	GLOBAL_timingMap->insert( make_pair("Generate Pyramid Levels",to_string( GeneratePyramidLevels )) );
 	GLOBAL_timingMap->insert( make_pair("im2feature",to_string( total_im2feature )) );
 	GLOBAL_timingMap->insert( make_pair("multiplyWith",to_string( total_Multiplywith )) );
@@ -1157,6 +1165,7 @@ void OpticalFlow::Coarse2FineFlow(map<string,string>* TIMING_PROFILE, DImage &vx
 	GLOBAL_timingMap->insert( make_pair("estLaplacianNoise",to_string( total_estLaplacianNoise )) );
 	// Resetting the global variables. "Dont try global variables, kids"
 	TotalExecution=0.0;
+	TotalGetDxs=0.0;
 	GeneratePyramidLevels=0.0;
 	total_im2feature=0.0;
 	total_Multiplywith=0.0;
