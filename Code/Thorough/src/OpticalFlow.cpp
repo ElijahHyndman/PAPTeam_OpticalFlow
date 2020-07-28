@@ -887,21 +887,29 @@ double OpticalFlow::estLaplacianNoise(const DImage& Im1,const DImage& Im2,Vector
 	for(int k = 0;k<nChannels;k++)
 		total[k] = 0;
 
+	double parallel_start=timer();
 	#pragma omp parallel num_threads(GLOBAL_nThreads)
 	{
 		#pragma omp for
 		for(int i =0;i<Im1.npixels();i++)
 			for(int k = 0;k<nChannels;k++)
 			{
+				// offset = this channel
 				int offset = i*nChannels+k;
 				temp= fabs(Im1.data()[offset]-Im2.data()[offset]);
 				if(temp>0 && temp<1000000)
 				{
+					// k={0,1,2} so these will need to be Pragma ATOMIC
+					#pragma omp atomic
 					para[k] += temp;
+
+					#pragma omp atomic
 					total[k]++;
 				}
 			}
-		}//end parallel
+	}//end parallel
+	cout<<"estLaplacianNoise parallel: "<<timer()-parallel_start<<endl;
+
 
 	for(int k = 0;k<nChannels;k++)
 	{
@@ -1030,7 +1038,7 @@ void OpticalFlow::testLaplacian(int dim)
 //					and passed back to Python using the TIMING_PROFILE map
 //
 //-------------------------------------------------------
-void myfunc(){cout<<"helol";}
+void myfunc(){cout<<"hell";}
 void OpticalFlow::Coarse2FineFlow(map<string,string>* TIMING_PROFILE, DImage &vx, DImage &vy, DImage &warpI2,const DImage &Im1, const DImage &Im2, int pyramidLevels, int nCores)
 {
 	// ASSERT: Coarse2FineFlow will always execute before Image.h > Global Variables will always be defined

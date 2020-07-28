@@ -981,7 +981,7 @@ double Image<T>::dx(Image<T1>& result,bool IsAdvancedFilter) const
 
 		#pragma omp parallel num_threads(GLOBAL_nThreads)
 		{
-			#pragma omp for  
+			#pragma omp for
 			for(i=0;i<imHeight;i++)
 				for(j=0;j<imWidth-1;j++)
 				{
@@ -1026,7 +1026,7 @@ double Image<T>::dy(Image<T1>& result,bool IsAdvancedFilter) const
 
 		#pragma omp parallel num_threads(GLOBAL_nThreads)
 		{
-			#pragma omp for  
+			#pragma omp for
 			for(i=0;i<imHeight-1;i++)
 				for(j=0;j<imWidth;j++)
 				{
@@ -1790,7 +1790,7 @@ double Image<T>::Multiplywith(const Image<T1> &image1)
 
 	#pragma omp parallel num_threads(GLOBAL_nThreads)
 	{
-		#pragma omp for  
+		#pragma omp for
 		for(int i=0;i<nElements;i++)
 			pData[i]*=pData1[i];
 	}
@@ -1822,7 +1822,7 @@ double Image<T>::Multiplywith(double value)
 
 	#pragma omp parallel num_threads(GLOBAL_nThreads)
 	{
-		#pragma omp for  
+		#pragma omp for
 		for(int i=0;i<nElements;i++)
 			pData[i]*=value;
 	}
@@ -1853,7 +1853,7 @@ double Image<T>::Add(const Image<T1>& image1,const Image<T2>& image2)
 
 	#pragma omp parallel num_threads(GLOBAL_nThreads)
 	{
-		#pragma omp for  
+		#pragma omp for
 		for(int i=0;i<nElements;i++)
 			pData[i]=pData1[i]+pData2[i];
 	}
@@ -1881,7 +1881,7 @@ double Image<T>::Add(const Image<T1>& image1,const Image<T2>& image2,double rati
 
 	#pragma omp parallel num_threads(GLOBAL_nThreads)
 	{
-		#pragma parallel for  
+		#pragma parallel for
 		for(int i=0;i<nElements;i++)
 			pData[i]=pData1[i]+pData2[i]*ratio;
 	}
@@ -1924,7 +1924,7 @@ double Image<T>::Add(const Image<T1>& image1)
 
 	#pragma omp parallel num_threads(GLOBAL_nThreads)
 	{
-		#pragma omp for  
+		#pragma omp for
 		for(int i=0;i<nElements;i++)
 			pData[i]+=pData1[i];
 	}
@@ -1936,12 +1936,17 @@ double Image<T>::Add(const Image<T1>& image1)
 template <class T>
 double Image<T>::Add(const T value)
 {
+	double start=timer();
+
 	#pragma omp parallel num_threads(GLOBAL_nThreads)
 	{
-		#pragma omp for  
+		#pragma omp for
 		for(int i=0;i<nElements;i++)
 			pData[i]+=value;
 	}
+
+	double end=timer();
+	return end-start;
 }
 
 //------------------------------------------------------------------------------------------
@@ -1965,7 +1970,7 @@ double Image<T>::Subtract(const Image<T1> &image1, const Image<T2> &image2)
 	const T2*& pData2=image2.data();
 	#pragma omp parallel num_threads(GLOBAL_nThreads)
 	{
-		#pragma omp for  
+		#pragma omp for
 		for(int i=0;i<nElements;i++)
 			pData[i]=(T)pData1[i]-pData2[i];
 	}
@@ -2035,7 +2040,7 @@ double Image<T>::threshold()
 		ImgMax = 255;
 	#pragma omp parallel num_threads(GLOBAL_nThreads)
 	{
-		#pragma omp for  
+		#pragma omp for
 		for(int i = 0;i<nPixels*nChannels;i++)
 			pData[i] = __min(__max(pData[i],0),ImgMax);
 	}
@@ -2643,7 +2648,7 @@ double Image<T>::warpImageBicubicRef(const Image<T>& ref,Image<T>& output,const 
 
 	#pragma omp parallel num_threads(GLOBAL_nThreads)
 	{
-		#pragma omp for  
+		#pragma omp for
 		for(int i  = 0; i<height; i++)
 			for(int j = 0;j<width;j++)
 			{
