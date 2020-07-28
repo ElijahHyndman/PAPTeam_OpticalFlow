@@ -1033,7 +1033,7 @@ void OpticalFlow::testLaplacian(int dim)
 //					and passed back to Python using the TIMING_PROFILE map
 //
 //-------------------------------------------------------
-void myfunc(){cout<<"helllo";}
+void myfunc(){cout<<"helllllllo";}
 void OpticalFlow::Coarse2FineFlow(map<string,string>* TIMING_PROFILE, DImage &vx, DImage &vy, DImage &warpI2,const DImage &Im1, const DImage &Im2, int pyramidLevels, int nCores)
 {
 	// ASSERT: Coarse2FineFlow will always execute before Image.h > Global Variables will always be defined
