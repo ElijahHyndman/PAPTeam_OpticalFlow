@@ -27,8 +27,7 @@
             "src/OpticalFlow.cpp",
             "src/Stochastic.cpp",
             "src/Coarse2FineFlowWrapper.cpp",
-            "src/GaussianPyramid.cpp",
-            "src/Image.cpp"
+            "src/GaussianPyramid.cpp"
         ]
     },
     "module_name": "pyflow"

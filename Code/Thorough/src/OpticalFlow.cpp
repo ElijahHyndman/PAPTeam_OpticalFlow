@@ -882,7 +882,6 @@ double OpticalFlow::estLaplacianNoise(const DImage& Im1,const DImage& Im2,Vector
 	for(int k = 0;k<nChannels;k++)
 		total[k] = 0;
 
-	double parallel_start=timer();
 	#pragma omp parallel num_threads(GLOBAL_nThreads)
 	{
 		#pragma omp for
@@ -903,7 +902,6 @@ double OpticalFlow::estLaplacianNoise(const DImage& Im1,const DImage& Im2,Vector
 				}
 			}
 	}//end parallel
-	cout<<"estLaplacianNoise parallel: "<<timer()-parallel_start<<endl;
 
 
 	for(int k = 0;k<nChannels;k++)
