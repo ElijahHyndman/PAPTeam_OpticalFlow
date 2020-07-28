@@ -461,6 +461,7 @@ public:
 };
 
 
+
 typedef Image<unsigned char> BiImage;
 typedef Image<unsigned char> UCImage;
 typedef Image<short int> IntImage;
