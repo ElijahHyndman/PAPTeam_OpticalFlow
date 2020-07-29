@@ -85,7 +85,7 @@ def debugTimingDiagnostics(timingDictionary):
     # Copy values to a dictionary that we can edit freely
     timing=timingDictionary.copy()
     # Items that will be displayed separately from the rest of the timing dictionary
-    separatedKeys=('_Total C++ Execution','_Total Flow Calculation','_Total getDxs')
+    separatedKeys=()#('_Total C++ Execution','_Total Flow Calculation')
     # Display the separatedKeys
     for item in separatedKeys:
         print('_'+item+': ',timing.pop(item))

@@ -426,10 +426,6 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 			du.reset();
 			dv.reset();
 
-			//double beforeLoopEnd=timer();
-			//cout<<"["<<count<<"."<<hh<<"] Before Loop: "<<getGradientEnd-getGradientStart<<endl;
-			//double loopStart=timer();
-			// PAP: This is the most fertile spot for openmp
 			for(int k = 0; k<nSORIterations; k++)
 				#pragma omp parallel num_threads(nCores)
 				{
@@ -482,9 +478,6 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 							dv.data()[offset] = (1-omega)*dv.data()[offset] + omega/(imdy2.data()[offset] + alpha*0.05 + coeff)*(imdtdy.data()[offset] - sigma2);
 						}
 				} // End pragma omp parallel
-
-				//double loopEnd=timer();
-				//cout<<"["<<count<<"."<<hh<<"] Loop time: "<<loopEnd-loopStart<<endl;
 		} // End SOR Iteration
 		total_add+=u.Add(du);
 		total_add+=v.Add(dv);
@@ -1100,21 +1093,21 @@ void OpticalFlow::Coarse2FineFlow(map<string,string>* TIMING_PROFILE, DImage &vx
 		total_im2feature+=im2feature(Image2,GPyramid2.Image(k));
 
 		// === Pyramid Level: Image Prepping
-		if(k==GPyramid1.nlevels()-1) // if at the top level
+		if(k==GPyramid1.nlevels()-1) // if at the top level, allocate derivate images
 		{
 			vx.allocate(width,height);
 			vy.allocate(width,height);
 			//warpI2.copyData(Image2);
 			WarpImage2.copyData(Image2);
 		}
-		else
+		else	// resize existing image
 		{
 
 			vx.imresize(width,height);
 			total_Multiplywith+= vx.Multiplywith(1/ratio);
 			vy.imresize(width,height);
 			total_Multiplywith+= vy.Multiplywith(1/ratio);
-			//warpFL(warpI2,GPyramid1.Image(k),GPyramid2.Image(k),vx,vy);
+			// interpolation is bilinear
 			if(interpolation == Bilinear)
 				warpFL(WarpImage2,Image1,Image2,vx,vy);
 			else
@@ -1123,6 +1116,14 @@ void OpticalFlow::Coarse2FineFlow(map<string,string>* TIMING_PROFILE, DImage &vx
 
 		// === Pyramid Level: Calculate Optical Flow
 		double IMAGE_FLOW_BEGIN=timer();
+		/*
+		_____                       _   _    ______ _
+	 /  ___|                     | | | |   |  ___| |
+	 \ `--. _ __ ___   ___   ___ | |_| |__ | |_  | | _____      __
+	  `--. \ '_ ` _ \ / _ \ / _ \| __| '_ \|  _| | |/ _ \ \ /\ / /
+	 /\__/ / | | | | | (_) | (_) | |_| | | | |   | | (_) \ V  V /
+	 \____/|_| |_| |_|\___/ \___/ \__|_| |_\_|   |_|\___/ \_/\_/
+		*/
 
 		SmoothFlowSOR(Image1,Image2,WarpImage2,vx,vy,alpha,nOuterFPIterations+k,nInnerFPIterations,nCGIterations+k*3, nCores);
 
@@ -1150,19 +1151,19 @@ void OpticalFlow::Coarse2FineFlow(map<string,string>* TIMING_PROFILE, DImage &vx
 	// === Output: Store the values
 	GLOBAL_timingMap->insert( make_pair("_Total Flow Calculation",to_string( DURATION_TOTAL_FLOW )) );
 	GLOBAL_timingMap->insert( make_pair("_Total C++ Execution",to_string( TotalExecution )) );
-	GLOBAL_timingMap->insert( make_pair("_Total getDxs",to_string( TotalGetDxs )) );
-	GLOBAL_timingMap->insert( make_pair("Generate Pyramid Levels",to_string( GeneratePyramidLevels )) );
-	GLOBAL_timingMap->insert( make_pair("im2feature",to_string( total_im2feature )) );
-	GLOBAL_timingMap->insert( make_pair("multiplyWith",to_string( total_Multiplywith )) );
-	GLOBAL_timingMap->insert( make_pair("dx",to_string( total_dx )) );
-	GLOBAL_timingMap->insert( make_pair("dy",to_string( total_dy )) );
-	GLOBAL_timingMap->insert( make_pair("add",to_string( total_add )) );
-	GLOBAL_timingMap->insert( make_pair("subtract",to_string( total_subtract )) );
-	GLOBAL_timingMap->insert( make_pair("warpImageBicubicRef",to_string( total_warpImageBicubicRef )) );
-	GLOBAL_timingMap->insert( make_pair("threshold",to_string( total_threshold )) );
-	GLOBAL_timingMap->insert( make_pair("genInImageMask",to_string( total_genInImageMask )) );
-	GLOBAL_timingMap->insert( make_pair("Laplacian",to_string( total_Laplacian )) );
-	GLOBAL_timingMap->insert( make_pair("estLaplacianNoise",to_string( total_estLaplacianNoise )) );
+	//GLOBAL_timingMap->insert( make_pair("_Total getDxs",to_string( TotalGetDxs )) );
+	//GLOBAL_timingMap->insert( make_pair("Generate Pyramid Levels",to_string( GeneratePyramidLevels )) );
+	// GLOBAL_timingMap->insert( make_pair("im2feature",to_string( total_im2feature )) );
+	// GLOBAL_timingMap->insert( make_pair("multiplyWith",to_string( total_Multiplywith )) );
+	// GLOBAL_timingMap->insert( make_pair("dx",to_string( total_dx )) );
+	// GLOBAL_timingMap->insert( make_pair("dy",to_string( total_dy )) );
+	// GLOBAL_timingMap->insert( make_pair("add",to_string( total_add )) );
+	// GLOBAL_timingMap->insert( make_pair("subtract",to_string( total_subtract )) );
+	// GLOBAL_timingMap->insert( make_pair("warpImageBicubicRef",to_string( total_warpImageBicubicRef )) );
+	// GLOBAL_timingMap->insert( make_pair("threshold",to_string( total_threshold )) );
+	// GLOBAL_timingMap->insert( make_pair("genInImageMask",to_string( total_genInImageMask )) );
+	// GLOBAL_timingMap->insert( make_pair("Laplacian",to_string( total_Laplacian )) );
+	// GLOBAL_timingMap->insert( make_pair("estLaplacianNoise",to_string( total_estLaplacianNoise )) );
 	// Resetting the global variables. "Dont try global variables, kids"
 	TotalExecution=0.0;
 	TotalGetDxs=0.0;
@@ -1233,7 +1234,7 @@ double OpticalFlow::im2feature(DImage &imfeature, const DImage &im)
 					data[offset*5+3]=im.data()[offset*3+1]-im.data()[offset*3];
 					data[offset*5+4]=im.data()[offset*3+1]-im.data()[offset*3+2];
 				}
-		}
+		}// end parallel
 	}
 	else
 		imfeature.copyData(im);
