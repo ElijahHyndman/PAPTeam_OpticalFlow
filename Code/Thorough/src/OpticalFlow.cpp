@@ -35,8 +35,21 @@ OpticalFlow::NoiseModel OpticalFlow::noiseModel = OpticalFlow::Lap;
 GaussianMixture OpticalFlow::GMPara;
 Vector<double> OpticalFlow::LapPara;
 
+// Global Phase parameters:
 double 	TotalExecution=0.0,
-				TotalGetDxs=0.0,
+				Construction=0.0,
+				Allocation=0.0,
+				Phase1_Generate=0.0,
+				Phase2_Derivatives=0.0,
+				Phase3_PsiData=0.0,
+				Phase4_LinearSystem=0.0,
+				Phase5_SOR=0.0,
+				Phase6_Update=0.0,
+				PostProcessing=0.0;
+
+
+// Parallel Specific timed parameters:
+double 	TotalGetDxs=0.0,
 				GeneratePyramidLevels=0.0,
 				total_im2feature=0.0,
 				total_Multiplywith=0.0,
@@ -1032,11 +1045,13 @@ void myfunc(){cout<<"helo";}
 void OpticalFlow::Coarse2FineFlow(map<string,string>* TIMING_PROFILE, DImage &vx, DImage &vy, DImage &warpI2,const DImage &Im1, const DImage &Im2, int pyramidLevels, int nCores)
 {
 	// ASSERT: Coarse2FineFlow will always execute before Image.h > Global Variables will always be defined
-	// === Set global variables for use amongst scripts
+	// === Pass global variables for use amongst scripts
 	GLOBAL_nThreads=nCores;
 	GLOBAL_timingMap=TIMING_PROFILE;
 	TotalExecution=timer();
 
+	// PHASE: Construction
+	Construction=timer();
 
 	// Hardcoded values
   double alpha = 0.012;
@@ -1045,8 +1060,6 @@ void OpticalFlow::Coarse2FineFlow(map<string,string>* TIMING_PROFILE, DImage &vx
   int nInnerFPIterations = 1;
   int nCGIterations = 30;
 	bool IsDisplay=true;
-
-
 	// === SetUp: Calculate Pyramid Set-up with GPyramids
 	GeneratePyramidLevels=timer();
 	GaussianPyramid GPyramid1;
@@ -1054,8 +1067,12 @@ void OpticalFlow::Coarse2FineFlow(map<string,string>* TIMING_PROFILE, DImage &vx
 	GPyramid1.ConstructPyramidLevels(Im1,ratio,pyramidLevels);
 	GPyramid2.ConstructPyramidLevels(Im2,ratio,pyramidLevels);
 	GeneratePyramidLevels=timer()-GeneratePyramidLevels;
-
+	// Accumulators
+	double duration_total_flow=0.0;
+	double pyramid_timer=0.0;
+	// Image Processing Data Structures
 	DImage Image1,Image2,WarpImage2;
+
 
 	// === Input: initialize noise
 	switch(noiseModel){
@@ -1068,72 +1085,69 @@ void OpticalFlow::Coarse2FineFlow(map<string,string>* TIMING_PROFILE, DImage &vx
 			LapPara[i] = 0.02;
 		break;
 	}
+	Construction=timer()-Construction;
 
-	// Accumulators
-	double DURATION_TOTAL_FLOW=0.0;
-	double pyramid_timer=0.0;
 
-	// Calculate Optical Flow on each level of pyramid
+	// === Calculate Optical Flow on each level of pyramid
 	for(int k=GPyramid1.nlevels()-1;k>=0;k--)
 	{
+		// === [P] DEBUG: Pyramid Level
 		if(IsDisplay)
 		{
-			if(k == 0)
-				cout<<"P["<<to_string(k)<<"] "<<flush;
-			else
-				cout<<"P["<<to_string(k)<<"]"<<flush;
+			if(k == 0) 	cout<<"P["<<to_string(k)<<"] "<<flush;
+			else				cout<<"P["<<to_string(k)<<"]"<<flush;
 		}
 
+		// =====================================================================PHASE: Allocation
 		pyramid_timer=timer();
 
-		// === Pyramid Level: Image presets calculated by GPyramid
+		// === [P]: Allocate Pyramid Images
 		int width=GPyramid1.Image(k).width();
 		int height=GPyramid1.Image(k).height();
 		total_im2feature+=im2feature(Image1,GPyramid1.Image(k));
 		total_im2feature+=im2feature(Image2,GPyramid2.Image(k));
 
-		// === Pyramid Level: Image Prepping
-		if(k==GPyramid1.nlevels()-1) // if at the top level, allocate derivate images
+		// === [P]: Allocate Derivative Images
+		if(k==GPyramid1.nlevels()-1) 		// if at the top level
 		{
 			vx.allocate(width,height);
 			vy.allocate(width,height);
-			//warpI2.copyData(Image2);
 			WarpImage2.copyData(Image2);
 		}
-		else	// resize existing image
+		else														// not at top level (Interpolation=Bilinear)
 		{
-
 			vx.imresize(width,height);
 			total_Multiplywith+= vx.Multiplywith(1/ratio);
 			vy.imresize(width,height);
 			total_Multiplywith+= vy.Multiplywith(1/ratio);
-			// interpolation is bilinear
 			if(interpolation == Bilinear)
 				warpFL(WarpImage2,Image1,Image2,vx,vy);
 			else
 				total_warpImageBicubicRef+= Image2.warpImageBicubicRef(Image1,WarpImage2,vx,vy);
 		}
+		Allocation+= timer()-pyramid_timer;
+		pyramid_timer=timer();
+		//=========================================================================================
 
-		// === Pyramid Level: Calculate Optical Flow
-		double IMAGE_FLOW_BEGIN=timer();
+
+		// === [P]: Calculate Optical Flow
 		/*
-		_____                       _   _    ______ _
-	 /  ___|                     | | | |   |  ___| |
-	 \ `--. _ __ ___   ___   ___ | |_| |__ | |_  | | _____      __
-	  `--. \ '_ ` _ \ / _ \ / _ \| __| '_ \|  _| | |/ _ \ \ /\ / /
-	 /\__/ / | | | | | (_) | (_) | |_| | | | |   | | (_) \ V  V /
-	 \____/|_| |_| |_|\___/ \___/ \__|_| |_\_|   |_|\___/ \_/\_/
+			_____                       _   _    ______ _
+		 /  ___|                     | | | |   |  ___| |
+		 \ `--. _ __ ___   ___   ___ | |_| |__ | |_  | | _____      __
+		  `--. \ '_ ` _ \ / _ \ / _ \| __| '_ \|  _| | |/ _ \ \ /\ / /
+		 /\__/ / | | | | | (_) | (_) | |_| | | | |   | | (_) \ V  V /
+		 \____/|_| |_| |_|\___/ \___/ \__|_| |_\_|   |_|\___/ \_/\_/
 		*/
-
+		double image_flow_begin=timer();
 		SmoothFlowSOR(Image1,Image2,WarpImage2,vx,vy,alpha,nOuterFPIterations+k,nInnerFPIterations,nCGIterations+k*3, nCores);
+		double image_flow_end=timer();
 
-		double IMAGE_FLOW_END=timer();
+		// === [P]: Calculate the durations of image processing for this level of the pyramid
+		double duration_image_flow=image_flow_end-image_flow_begin;
+		duration_total_flow+=duration_image_flow;
 
-		// === Pyramid Level: Calculate the durations of image processing for this level of the pyramid
-		double DURATION_IMAGE_FLOW=IMAGE_FLOW_END-IMAGE_FLOW_BEGIN;
-		DURATION_TOTAL_FLOW+=DURATION_IMAGE_FLOW;
-
-		// DEBUG: print elapsed time for this pyramid level
+		// [P] DEBUG: print elapsed time for this pyramid level
 		pyramid_timer=timer()-pyramid_timer;
 		cout<<"("<< fixed<<setprecision(1)<<pyramid_timer <<"s) "<<flush;
 	}
@@ -1149,7 +1163,7 @@ void OpticalFlow::Coarse2FineFlow(map<string,string>* TIMING_PROFILE, DImage &vx
 	// === Output: Calculate the durations of the entire pyramid
 
 	// === Output: Store the values
-	GLOBAL_timingMap->insert( make_pair("_Total Flow Calculation",to_string( DURATION_TOTAL_FLOW )) );
+	GLOBAL_timingMap->insert( make_pair("_Total Flow Calculation",to_string( duration_total_flow )) );
 	GLOBAL_timingMap->insert( make_pair("_Total C++ Execution",to_string( TotalExecution )) );
 	//GLOBAL_timingMap->insert( make_pair("_Total getDxs",to_string( TotalGetDxs )) );
 	//GLOBAL_timingMap->insert( make_pair("Generate Pyramid Levels",to_string( GeneratePyramidLevels )) );
