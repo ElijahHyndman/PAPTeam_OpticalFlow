@@ -763,7 +763,6 @@ void Image<T>::imresize(Image<T1>& result,double ratio) const
 	ImageProcessing::ResizeImage(pData,result.data(),imWidth,imHeight,nChannels,ratio);
 
 	double end=timer();
-	GLOBAL_timingMap->insert( make_pair("imresize",to_string( end-start )) );
 }
 
 template <class T>

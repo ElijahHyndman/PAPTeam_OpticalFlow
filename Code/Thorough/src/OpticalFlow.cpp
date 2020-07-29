@@ -265,18 +265,25 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 	double varepsilon_phi=pow(0.001,2);
 	double varepsilon_psi=pow(0.001,2);
 
+	double start_time;
+
 	//--------------------------------------------------------------------------
 	// the outer fixed point iteration
 	//--------------------------------------------------------------------------
 	for(int count=0;count<nOuterFPIterations;count++)
 	{
+		//PHASE: Phase1_generate
+		start_time=timer();
+		// Compute the gradient
 		TotalGetDxs=timer();
-		// compute the gradient
 		getDxs(imdx,imdy,imdt,Im1,warpIm2);
 		TotalGetDxs=timer()-TotalGetDxs;
 
-		// generate the mask to set the weight of the pxiels moving outside of the image boundary to be zero
+		// Generate the mask to set the weight of the pxiels moving outside of the image boundary to be zero
 		total_genInImageMask+=genInImageMask(mask,u,v);
+		Phase1_Generate+=timer()-start_time;
+		//
+
 
 		// set the derivative of the flow field to be zero
 		du.reset();
@@ -287,7 +294,8 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 		//--------------------------------------------------------------------------
 		for(int hh=0;hh<nInnerFPIterations;hh++)
 		{
-			//double beforeLoopStart=timer();
+			//PHASE: Phase2_Derivatives
+			start_time=timer();
 			// compute the derivatives of the current flow field
 			if(hh==0)
 			{
@@ -303,6 +311,9 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 			total_dy+=uu.dy(uy);
 			total_dx+=vv.dx(vx);
 			total_dy+=vv.dy(vy);
+			Phase2_Derivatives+=timer()-start_time;
+			//
+
 
 			// compute the weight of phi
 			Phi_1st.reset();
@@ -327,6 +338,7 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 				}
 			}
 
+
 			// compute the nonlinear term of psi
 			Psi_1st.reset();
 			_FlowPrecision* psiData=Psi_1st.data();
@@ -338,8 +350,12 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 			duData=du.data();
 			dvData=dv.data();
 
+
+			//PHASE: Phase3_PsiData
+			start_time=timer();
 			//double _a  = 10000, _b = 0.1;
 			if(nChannels==1)
+			{
 				for(int i=0;i<nPixels;i++)
 				{
 					temp=imdtData[i]+imdxData[i]*duData[i]+imdyData[i]*dvData[i];
@@ -351,22 +367,24 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 					temp *= temp;
 					switch(noiseModel)
 					{
-					case GMixture:
-						prob1 = GMPara.Gaussian(temp,0,0)*GMPara.alpha[0];
-						prob2 = GMPara.Gaussian(temp,1,0)*(1-GMPara.alpha[0]);
-						prob11 = prob1/(2*GMPara.sigma_square[0]);
-						prob22 = prob2/(2*GMPara.beta_square[0]);
-						psiData[i] = (prob11+prob22)/(prob1+prob2);
-						break;
-					case Lap:
-						if(LapPara[0]<1E-20)
-							continue;
-						//psiData[i]=1/(2*sqrt(temp+varepsilon_psi)*LapPara[0]);
-                        psiData[i]=1/(2*sqrt(temp+varepsilon_psi));
-						break;
+						case GMixture:
+							prob1 = GMPara.Gaussian(temp,0,0)*GMPara.alpha[0];
+							prob2 = GMPara.Gaussian(temp,1,0)*(1-GMPara.alpha[0]);
+							prob11 = prob1/(2*GMPara.sigma_square[0]);
+							prob22 = prob2/(2*GMPara.beta_square[0]);
+							psiData[i] = (prob11+prob22)/(prob1+prob2);
+							break;
+						case Lap:
+							if(LapPara[0]<1E-20)
+								continue;
+							//psiData[i]=1/(2*sqrt(temp+varepsilon_psi)*LapPara[0]);
+	                        psiData[i]=1/(2*sqrt(temp+varepsilon_psi));
+							break;
 					}
 				}
+			}
 			else // Multiple Channels
+			{
 				#pragma omp parallel
 				{
 					#pragma omp for
@@ -398,6 +416,13 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 							}
 						}
 				}//end parallel
+			}
+			Phase3_PsiData+=timer()-start_time;
+			//
+
+
+			//PHASE: Phase4_LinearSystem
+			start_time=timer();
 			// prepare the components of the large linear system
 			ImDxy.Multiply(Psi_1st,imdx,imdy);
 			ImDx2.Multiply(Psi_1st,imdx,imdx);
@@ -425,20 +450,24 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 		  total_Laplacian+=  Laplacian(foo1,u,Phi_1st);
 			total_Laplacian+=  Laplacian(foo2,v,Phi_1st);
 
+			Phase4_LinearSystem+=timer()-start_time;
+			//
+
+
 			for(int i=0;i<nPixels;i++)
 			{
 				imdtdx.data()[i] = -imdtdx.data()[i]-alpha*foo1.data()[i];
 				imdtdy.data()[i] = -imdtdy.data()[i]-alpha*foo2.data()[i];
 			}
 
-			// here we start SOR
-
 			// set omega
 			double omega = 1.8;
-
 			du.reset();
 			dv.reset();
 
+
+			//PHASE: Phase5_SOR
+			start_time=timer();
 			for(int k = 0; k<nSORIterations; k++)
 				#pragma omp parallel num_threads(nCores)
 				{
@@ -492,6 +521,12 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 						}
 				} // End pragma omp parallel
 		} // End SOR Iteration
+		Phase5_SOR+=timer()-start_time;
+		//
+
+
+		//PHASE: Phase6_Update
+		start_time=timer();
 		total_add+=u.Add(du);
 		total_add+=v.Add(dv);
 		if(interpolation == Bilinear)
@@ -511,7 +546,8 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 		case Lap:
 			total_estLaplacianNoise+=estLaplacianNoise(Im1,warpIm2,LapPara);
 		}
-
+		Phase6_Update+=timer()-start_time;
+		//
 	}
 }	// End SmoothFlowSOR
 
@@ -1049,8 +1085,9 @@ void OpticalFlow::Coarse2FineFlow(map<string,string>* TIMING_PROFILE, DImage &vx
 	GLOBAL_nThreads=nCores;
 	GLOBAL_timingMap=TIMING_PROFILE;
 	TotalExecution=timer();
+	double time;
 
-	// PHASE: Construction
+	//PHASE: Construction
 	Construction=timer();
 
 	// Hardcoded values
@@ -1069,7 +1106,7 @@ void OpticalFlow::Coarse2FineFlow(map<string,string>* TIMING_PROFILE, DImage &vx
 	GeneratePyramidLevels=timer()-GeneratePyramidLevels;
 	// Accumulators
 	double duration_total_flow=0.0;
-	double pyramid_timer=0.0;
+	double debug_timer=0.0;
 	// Image Processing Data Structures
 	DImage Image1,Image2,WarpImage2;
 
@@ -1086,28 +1123,27 @@ void OpticalFlow::Coarse2FineFlow(map<string,string>* TIMING_PROFILE, DImage &vx
 		break;
 	}
 	Construction=timer()-Construction;
+	//
 
 
-	// === Calculate Optical Flow on each level of pyramid
+	// P Y R A M I D
 	for(int k=GPyramid1.nlevels()-1;k>=0;k--)
 	{
-		// === [P] DEBUG: Pyramid Level
+		//=== [P] DEBUG: Pyramid Level
 		if(IsDisplay)
-		{
-			if(k == 0) 	cout<<"P["<<to_string(k)<<"] "<<flush;
-			else				cout<<"P["<<to_string(k)<<"]"<<flush;
-		}
+			cout<<"P["<<to_string(k)<<"]"<<flush;
 
-		// =====================================================================PHASE: Allocation
-		pyramid_timer=timer();
+		//PHASE: Allocation
+		debug_timer=timer();
+		time=timer();
 
-		// === [P]: Allocate Pyramid Images
+		//=== [P]: Allocate Pyramid Images
 		int width=GPyramid1.Image(k).width();
 		int height=GPyramid1.Image(k).height();
 		total_im2feature+=im2feature(Image1,GPyramid1.Image(k));
 		total_im2feature+=im2feature(Image2,GPyramid2.Image(k));
 
-		// === [P]: Allocate Derivative Images
+		//=== [P]: Allocate Derivative Images
 		if(k==GPyramid1.nlevels()-1) 		// if at the top level
 		{
 			vx.allocate(width,height);
@@ -1125,46 +1161,46 @@ void OpticalFlow::Coarse2FineFlow(map<string,string>* TIMING_PROFILE, DImage &vx
 			else
 				total_warpImageBicubicRef+= Image2.warpImageBicubicRef(Image1,WarpImage2,vx,vy);
 		}
-		Allocation+= timer()-pyramid_timer;
-		pyramid_timer=timer();
-		//=========================================================================================
+		Allocation+= timer()-time;
+		//
 
-
-		// === [P]: Calculate Optical Flow
-		/*
-			_____                       _   _    ______ _
-		 /  ___|                     | | | |   |  ___| |
-		 \ `--. _ __ ___   ___   ___ | |_| |__ | |_  | | _____      __
-		  `--. \ '_ ` _ \ / _ \ / _ \| __| '_ \|  _| | |/ _ \ \ /\ / /
-		 /\__/ / | | | | | (_) | (_) | |_| | | | |   | | (_) \ V  V /
-		 \____/|_| |_| |_|\___/ \___/ \__|_| |_\_|   |_|\___/ \_/\_/
-		*/
+		//=== [P]: Calculate Optical Flow
 		double image_flow_begin=timer();
 		SmoothFlowSOR(Image1,Image2,WarpImage2,vx,vy,alpha,nOuterFPIterations+k,nInnerFPIterations,nCGIterations+k*3, nCores);
 		double image_flow_end=timer();
 
-		// === [P]: Calculate the durations of image processing for this level of the pyramid
+		//=== [P]: Timing
 		double duration_image_flow=image_flow_end-image_flow_begin;
 		duration_total_flow+=duration_image_flow;
 
-		// [P] DEBUG: print elapsed time for this pyramid level
-		pyramid_timer=timer()-pyramid_timer;
-		cout<<"("<< fixed<<setprecision(1)<<pyramid_timer <<"s) "<<flush;
-	}
+		//=== [P] DEBUG: print elapsed time for this pyramid level
+		debug_timer=timer()-debug_timer;
+		cout<<"("<< fixed<<setprecision(1)<<debug_timer <<"s) "<<flush;
+	}	printf("! \n");
+	// End Pyramid
 
-	printf("! \n");
 
-	// === Output: warp image 2
+	//PHASE: PostProcessing
 	total_warpImageBicubicRef+= Im2.warpImageBicubicRef(Im1,warpI2,vx,vy);
 	total_threshold+=warpI2.threshold();
-
+	//
 
 	TotalExecution=timer()-TotalExecution;
-	// === Output: Calculate the durations of the entire pyramid
 
 	// === Output: Store the values
-	GLOBAL_timingMap->insert( make_pair("_Total Flow Calculation",to_string( duration_total_flow )) );
-	GLOBAL_timingMap->insert( make_pair("_Total C++ Execution",to_string( TotalExecution )) );
+	GLOBAL_timingMap->insert( make_pair("Total Flow Calculation",to_string( duration_total_flow )) );
+	GLOBAL_timingMap->insert( make_pair("Total C++ Execution",to_string( TotalExecution )) );
+	GLOBAL_timingMap->insert( make_pair("Construction",to_string( Construction )) );
+	GLOBAL_timingMap->insert( make_pair("Allocation",to_string( Allocation )) );
+	GLOBAL_timingMap->insert( make_pair("Phase1_Generate",to_string( Phase1_Generate )) );
+	GLOBAL_timingMap->insert( make_pair("Phase2_Derivatives",to_string( Phase2_Derivatives )) );
+	GLOBAL_timingMap->insert( make_pair("Phase3_PsiData",to_string( Phase3_PsiData )) );
+	GLOBAL_timingMap->insert( make_pair("Phase4_LinearSystem",to_string( Phase4_LinearSystem )) );
+	GLOBAL_timingMap->insert( make_pair("Phase5_SOR",to_string( Phase5_SOR )) );
+	GLOBAL_timingMap->insert( make_pair("Phase6_Update",to_string( Phase6_Update )) );
+	GLOBAL_timingMap->insert( make_pair("PostProcessing",to_string( PostProcessing )) );
+
+
 	//GLOBAL_timingMap->insert( make_pair("_Total getDxs",to_string( TotalGetDxs )) );
 	//GLOBAL_timingMap->insert( make_pair("Generate Pyramid Levels",to_string( GeneratePyramidLevels )) );
 	// GLOBAL_timingMap->insert( make_pair("im2feature",to_string( total_im2feature )) );
@@ -1178,8 +1214,20 @@ void OpticalFlow::Coarse2FineFlow(map<string,string>* TIMING_PROFILE, DImage &vx
 	// GLOBAL_timingMap->insert( make_pair("genInImageMask",to_string( total_genInImageMask )) );
 	// GLOBAL_timingMap->insert( make_pair("Laplacian",to_string( total_Laplacian )) );
 	// GLOBAL_timingMap->insert( make_pair("estLaplacianNoise",to_string( total_estLaplacianNoise )) );
+
+
 	// Resetting the global variables. "Dont try global variables, kids"
 	TotalExecution=0.0;
+	Construction=0.0;
+	Allocation=0.0;
+	Phase1_Generate=0.0;
+	Phase2_Derivatives=0.0;
+	Phase3_PsiData=0.0;
+	Phase4_LinearSystem=0.0;
+	Phase5_SOR=0.0;
+	Phase6_Update=0.0;
+	PostProcessing=0.0;
+
 	TotalGetDxs=0.0;
 	GeneratePyramidLevels=0.0;
 	total_im2feature=0.0;
@@ -1193,7 +1241,6 @@ void OpticalFlow::Coarse2FineFlow(map<string,string>* TIMING_PROFILE, DImage &vx
 	total_add=0.0;
 	total_subtract=0.0;
 	total_estLaplacianNoise=0.0;
-
 }
 //-------------------------
 // End PAP_Team optical flow call
