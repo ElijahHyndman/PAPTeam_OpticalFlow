@@ -42,35 +42,39 @@ def TestRun(Progression='Default',ImagesPerCollection=3,pyramidLevels=3,threadPr
     ImagePairGenerator=TestImagePairGenerator()
 
 
-    # Progress bar: Calculate the total number of images that we will work with
+    # Total Progress bar: Calculate the total number of images that we will work with
     totalImages=len(threadProgression)*Repetitions
-    #   images per collection may be specified amount or the arbitrary size of the directory
+    #   Images per collection may be:
+    #       - Specified number of Images or,
+    #       - Entire arbitrarily large directory
     if ImagesPerCollection>1:
         numberOfCollections=len(CollectionProgressions[Progression])
         totalImages*=ImagesPerCollection*numberOfCollections
     else:
         # This is a roundabout way to count the number of images within each test image collection directory
         collectionImages=0
-        for collectionName in CollectionProgressions[Progression]:
-            collectionImages+=len(ImagePairGenerator.generateTestImagePairsFromCollectionName(collectionName))
+        for eachCollection in CollectionProgressions[Progression]:
+            collectionImages+=len(ImagePairGenerator.generateTestImagePairsFromCollectionName(eachCollection))
         totalImages*=collectionImages
 
 
     # Run the entire test 'Repetitions' times over
     imageIndex=1
+    # For number of Repetitions
     for iteration in range(Repetitions):
         print('='*20,'Iteration',iteration+1,':\n')
         # For every image collection named
         for COLLECTION in CollectionProgressions[Progression]:
             ImagePairs=ImagePairGenerator.generateTestImagePairsFromCollectionName(COLLECTION)
-            # Run each Test Image Pair using each number of threads specified
+            # For each Number of Threads
             for numCores in threadProgression:
                 print('+'*15,numCores,'threads','+'*15,'\n')
+                # For each Image Pair
                 for IMAGEPAIR in ImagePairs[:ImagesPerCollection]:
 
                     # === DEBUG: Print Calculation Header
                     progressString='Image ['+str(imageIndex)+'/'+str(totalImages)+']'
-                    print( '='*10, '['+IMAGEPAIR.asStorageString(' -> ',long=False)+']', '='*10 , progressString, '='*10)
+                    print('['+IMAGEPAIR.asStorageString(' -> ',long=False)+']', '='*10 , progressString, '='*10)
 
                     # === Perform calculation
                     CalculateOpticalFlow(IMAGEPAIR,pyramidLevels,numCores,outputSuffix)
@@ -83,5 +87,5 @@ def TestRun(Progression='Default',ImagesPerCollection=3,pyramidLevels=3,threadPr
 
 # === Running Tests
 begin=time.perf_counter()
-TestRun(Progression='Heavy',ImagesPerCollection=1,pyramidLevels=6,threadProgression=(1,),Repetitions=1,outputSuffix='_refined')
+TestRun(Progression='Full',ImagesPerCollection=1,pyramidLevels=6,threadProgression=(1,4),Repetitions=1,outputSuffix='_timed')
 print('Program Execution time: {:.2f}'.format(time.perf_counter()-begin))

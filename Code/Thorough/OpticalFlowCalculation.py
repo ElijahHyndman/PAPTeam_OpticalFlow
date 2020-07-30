@@ -11,6 +11,7 @@ import argparse
 import pyflow
 import os
 import cv2
+import matplotlib.pyplot as plt
 try: # import our own local made modules
     from InputCreation.TestImagePairGenerator import TestImagePairGenerator
     from InputCreation.TestImagePair import TestImagePair
@@ -75,23 +76,18 @@ def CalculateOpticalFlow(imagePair, pyramidLevels, numCores, optionalOutputSuffi
     flow = np.concatenate((u[..., None], v[..., None]), axis=2)
 
     debugTimingDiagnostics(timingDictionary)
-    # === DEBUG: print the timing contents of this calculation to terminal
-    #print(timingDictionary.items())
 
     # === All of the output Storing
     generateOutput(imagePair, pyramidLevels, numCores, flow, imDimensions, timingDictionary, optionalOutputSuffix)
 
+
+
 def debugTimingDiagnostics(timingDictionary):
     # Copy values to a dictionary that we can edit freely
     timing=timingDictionary.copy()
-
-    # Items that will be displayed separately from the rest of the timing dictionary
-    #separatedKeys=()#('_Total C++ Execution','_Total Flow Calculation')
-    # Display the separatedKeys
-    #for item in separatedKeys:
-    #    print('_'+item+': ',timing.pop(item))
-    # Display the rest
+    print('Total Time for Image:',timingDictionary['Total C++ Execution'])
     print(timing)
+
 
 
 def generateOutput(imagePair, nLevels, nCores, flow, imDimensions, timingDictionary, optionalOutputSuffix):
@@ -105,34 +101,39 @@ def generateOutput(imagePair, nLevels, nCores, flow, imDimensions, timingDiction
 
     # === Folder Names for Path
     # All output will be stored in ./output
-    OUTPUT_DIRECTORY=os.path.join(os.getcwd(),'output')
     # This output is stored in ./output/ImageCollectionName
-    COLLECTION_OUTPUT_FOLDER_NAME=imagePair.BEFORE.IMAGE_PARENT+optionalOutputSuffix
-    OutputFolder=os.path.join(OUTPUT_DIRECTORY,COLLECTION_OUTPUT_FOLDER_NAME)
     # images and timing are stored in separate respective folders
-    Image_OutputFolder=os.path.join(OutputFolder,'images_P{}'.format(nLevels))
-    Timing_OutputFolder=os.path.join(OutputFolder,'timing')
+    outputPath=os.path.join(os.getcwd(),'output')
+    Collection_outputFolderName=imagePair.BEFORE.IMAGE_PARENT+optionalOutputSuffix
+    Collection_outputPath=os.path.join(outputPath,Collection_outputFolderName)
+
+    Image_outputPath=os.path.join(Collection_outputPath, ('images_P{}'.format(nLevels)) )
+    Timing_outputPath=os.path.join(Collection_outputPath, ('timing') )
 
     # Create said Directories if they don't exist
-    os.makedirs(OutputFolder,exist_ok=True)
-    os.makedirs(Image_OutputFolder,exist_ok=True)
-    os.makedirs(Timing_OutputFolder,exist_ok=True)
+    os.makedirs(Collection_outputPath,exist_ok=True)
+    os.makedirs(Image_outputPath,exist_ok=True)
+    os.makedirs(Timing_outputPath,exist_ok=True)
 
     # === Files
-    # Image File Name
-    # Output image names are derived from first input image
+    # Image File Name (based on first image of pair)
     Frame_Base=('frame{}'.format(imagePair.BEFORE.IMAGE_INDEX_STRING))
     Image_OutputExtension='.jpg'
     Image_OutputFile=Frame_Base+Image_OutputExtension
-    OUTPUT_IMAGE_PATH=os.path.join(Image_OutputFolder,Image_OutputFile)
+    OUTPUT_IMAGEFILE_PATH=os.path.join(Image_outputPath,Image_OutputFile)
 
-    # Timing File Name
-    Timing_OutputFile=COLLECTION_OUTPUT_FOLDER_NAME+'_P{}_C{}.txt'.format(nLevels,nCores)
-    OUTPUT_TIMING_PATH=os.path.join(Timing_OutputFolder,Timing_OutputFile)
+    if (0):
+        # Timing File Name (based on pyramid height, thread number)
+        Timing_OutputFile=Collection_outputFolderName+'_P{}_C{}.txt'.format(nLevels,nCores)
+        OUTPUT_TIMINGFILE_PATH=os.path.join(Timing_outputPath,Timing_OutputFile)
+    else:
+        Timing_OutputFile=Collection_outputFolderName+'.txt'
+        OUTPUT_TIMINGFILE_PATH=os.path.join(outputPath,Timing_OutputFile)
 
     # === Create the final output files
-    generateOutputFlowImageFile(OUTPUT_IMAGE_PATH,flow,imDimensions)
-    generateOutputTimingFile(OUTPUT_TIMING_PATH,timingDictionary)
+    if (0):
+        generateOutputFlowImageFile(OUTPUT_IMAGEFILE_PATH,flow,imDimensions)
+    generateOutputTimingFile(OUTPUT_TIMINGFILE_PATH,timingDictionary)
 
 
 
@@ -165,7 +166,7 @@ def generateOutputTimingFile(outputFilePath, timingDictionary):
     # We will write the header first, if the file does not exist yet
     writeHeader= not os.path.exists(outputFilePath)
     f = open(outputFilePath,'a')
-    delimiter=','
+    delimiter='\t'
 
     if( writeHeader ):
         HeaderString=delimiter.join( timingDictionary.keys() )
@@ -176,3 +177,6 @@ def generateOutputTimingFile(outputFilePath, timingDictionary):
     timingString=delimiter.join( timingDictionary.values() )
     f.write(timingString+'\n')
     f.close()
+
+def generateOutputGraphs():
+    pass

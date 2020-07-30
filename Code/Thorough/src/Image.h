@@ -750,7 +750,6 @@ template <class T>
 template <class T1>
 void Image<T>::imresize(Image<T1>& result,double ratio) const
 {
-	double start=timer();
 
 	int DstWidth,DstHeight;
 	DstWidth=(double)imWidth*ratio;
@@ -761,8 +760,6 @@ void Image<T>::imresize(Image<T1>& result,double ratio) const
 		result.reset();
 	// ResizeImage function will be Parallelized
 	ImageProcessing::ResizeImage(pData,result.data(),imWidth,imHeight,nChannels,ratio);
-
-	double end=timer();
 }
 
 template <class T>
@@ -1515,28 +1512,33 @@ void Image<T>::collapse(Image<T1> &image,collapse_type type) const
 	T1* data=image.data();
 	int offset;
 	double temp;
-	for(int i=0;i<nPixels;i++)
+
+	#pragma omp parallel num_threads(GLOBAL_nThreads)
 	{
-		offset=i*nChannels;
-		switch(type){
-			case collapse_average:
-				temp=0;
-				for(int j=0;j<nChannels;j++)
-					temp+=pData[offset+j];
-				data[i]=temp/nChannels;
-				break;
-			case collapse_max:
-				data[i] = pData[offset];
-				for(int j=1;j<nChannels;j++)
-					data[i] = __max(data[i],pData[offset+j]);
-				break;
-			case collapse_min:
-				data[i] = pData[offset];
-				for(int j = 1;j<nChannels;j++)
-					data[i]=__min(data[i],pData[offset+j]);
-				break;
+		#pragma omp for
+		for(int i=0;i<nPixels;i++)
+		{
+			offset=i*nChannels;
+			switch(type){
+				case collapse_average:
+					temp=0;
+					for(int j=0;j<nChannels;j++)
+						temp+=pData[offset+j];
+					data[i]=temp/nChannels;
+					break;
+				case collapse_max:
+					data[i] = pData[offset];
+					for(int j=1;j<nChannels;j++)
+						data[i] = __max(data[i],pData[offset+j]);
+					break;
+				case collapse_min:
+					data[i] = pData[offset];
+					for(int j = 1;j<nChannels;j++)
+						data[i]=__min(data[i],pData[offset+j]);
+					break;
+			}
 		}
-	}
+	}//end parallel
 }
 
 template <class T>
@@ -1733,8 +1735,12 @@ void Image<T>::Multiply(const Image<T1>& image1,const Image<T2>& image2,const Im
 	const T2*& pData2=image2.data();
 	const T3*& pData3=image3.data();
 
-	for(int i=0;i<nElements;i++)
-		pData[i]=pData1[i]*pData2[i]*pData3[i];
+	#pragma omp parallel num_threads(GLOBAL_nThreads)
+	{
+		#pragma omp for
+		for(int i=0;i<nElements;i++)
+			pData[i]=pData1[i]*pData2[i]*pData3[i];
+	}
 }
 
 template <class T>

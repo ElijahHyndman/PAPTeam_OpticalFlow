@@ -272,7 +272,6 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 	//--------------------------------------------------------------------------
 	for(int count=0;count<nOuterFPIterations;count++)
 	{
-		cout <<"phase 1"<<endl;
 		//PHASE: Phase1_generate
 		start_time=timer();
 		// Compute the gradient
@@ -296,7 +295,6 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 		for(int hh=0;hh<nInnerFPIterations;hh++)
 		{
 			//PHASE: Phase2_Derivatives
-			cout <<"phase 2"<<endl;
 			start_time=timer();
 			// compute the derivatives of the current flow field
 			if(hh==0)
@@ -353,7 +351,6 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 
 
 			//PHASE: Phase3_PsiData
-			cout<<"phase 3"<<endl;
 			start_time=timer();
 			//double _a  = 10000, _b = 0.1;
 			if(nChannels==1)
@@ -422,7 +419,7 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 			Phase3_PsiData+=timer()-start_time;
 			//
 
-			cout<<"phase 4..."<<endl;
+
 			//PHASE: Phase4_LinearSystem
 			start_time=timer();
 			// prepare the components of the large linear system
@@ -467,7 +464,7 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 			du.reset();
 			dv.reset();
 
-			cout << "Phase 5"<<endl;
+
 			//PHASE: Phase5_SOR
 			start_time=timer();
 			for(int k = 0; k<nSORIterations; k++)
@@ -526,7 +523,7 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 		Phase5_SOR+=timer()-start_time;
 		//
 
-		cout<<"Phase 6!"<<endl;
+
 		//PHASE: Phase6_Update
 		start_time=timer();
 		total_add+=u.Add(du);
@@ -550,318 +547,9 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 		}
 		Phase6_Update+=timer()-start_time;
 		//
-		cout<<"end SOR"<<flush;
 	}
 }	// End SmoothFlowSOR
 
-
-
-//--------------------------------------------------------------------------------------------------------
-// function to compute optical flow field using two fixed point iterations
-// Input arguments:
-//     Im1, Im2:						frame 1 and frame 2
-//	warpIm2:						the warped frame 2 according to the current flow field u and v
-//	u,v:									the current flow field, NOTICE that they are also output arguments
-//
-//--------------------------------------------------------------------------------------------------------
-void OpticalFlow::SmoothFlowPDE(const DImage &Im1, const DImage &Im2, DImage &warpIm2, DImage &u, DImage &v,
-																    double alpha, int nOuterFPIterations, int nInnerFPIterations, int nCGIterations)
-{
-	DImage mask,imdx,imdy,imdt;
-	int imWidth,imHeight,nChannels,nPixels;
-	imWidth=Im1.width();
-	imHeight=Im1.height();
-	nChannels=Im1.nchannels();
-	nPixels=imWidth*imHeight;
-
-	DImage du(imWidth,imHeight),dv(imWidth,imHeight);
-	DImage uu(imWidth,imHeight),vv(imWidth,imHeight);
-	DImage ux(imWidth,imHeight),uy(imWidth,imHeight);
-	DImage vx(imWidth,imHeight),vy(imWidth,imHeight);
-	DImage Phi_1st(imWidth,imHeight);
-	DImage Psi_1st(imWidth,imHeight,nChannels);
-
-	DImage imdxy,imdx2,imdy2,imdtdx,imdtdy;
-	DImage ImDxy,ImDx2,ImDy2,ImDtDx,ImDtDy;
-	DImage A11,A12,A22,b1,b2;
-	DImage foo1,foo2;
-
-	// compute bicubic interpolation coeff
-	//DImage BicubicCoeff;
-	//Im2.warpImageBicubicCoeff(BicubicCoeff);
-	double prob1,prob2,prob11,prob22;
-	// variables for conjugate gradient
-	DImage r1,r2,p1,p2,q1,q2;
-	double* rou;
-	rou=new double[nCGIterations];
-
-	double varepsilon_phi=pow(0.001,2);
-	double varepsilon_psi=pow(0.001,2);
-
-	//--------------------------------------------------------------------------
-	// the outer fixed point iteration
-	//--------------------------------------------------------------------------
-	for(int count=0;count<nOuterFPIterations;count++)
-	{
-		// compute the gradient
-		 getDxs(imdx,imdy,imdt,Im1,warpIm2);
-
-		// generate the mask to set the weight of the pxiels moving outside of the image boundary to be zero
-		total_genInImageMask+=genInImageMask(mask,u,v);
-
-		// set the derivative of the flow field to be zero
-		du.reset();
-		dv.reset();
-
-		//--------------------------------------------------------------------------
-		// the inner fixed point iteration
-		//--------------------------------------------------------------------------
-		for(int hh=0;hh<nInnerFPIterations;hh++)
-		{
-			// compute the derivatives of the current flow field
-			if(hh==0)
-			{
-				uu.copyData(u);
-				vv.copyData(v);
-			}
-			else
-			{
-				total_add+=uu.Add(u,du);
-				total_add+=vv.Add(v,dv);
-			}
-			total_dx+=uu.dx(ux);
-			total_dy+=uu.dy(uy);
-			total_dx+=vv.dx(vx);
-			total_dy+=vv.dy(vy);
-
-			// compute the weight of phi
-			Phi_1st.reset();
-			_FlowPrecision* phiData=Phi_1st.data();
-			_FlowPrecision temp;
-			const _FlowPrecision *uxData,*uyData,*vxData,*vyData;
-			uxData=ux.data();
-			uyData=uy.data();
-			vxData=vx.data();
-			vyData=vy.data();
-			//double power_alpha = 0.5;
-			for(int i=0;i<nPixels;i++)
-			{
-				temp=uxData[i]*uxData[i]+uyData[i]*uyData[i]+vxData[i]*vxData[i]+vyData[i]*vyData[i];
-				//phiData[i]=power_alpha*pow(temp+varepsilon_phi,power_alpha-1);
-				phiData[i] = 0.5/sqrt(temp+varepsilon_phi);
-				//phiData[i] = 1/(power_alpha+temp);
-			}
-
-			// compute the nonlinear term of psi
-			Psi_1st.reset();
-			_FlowPrecision* psiData=Psi_1st.data();
-			const _FlowPrecision *imdxData,*imdyData,*imdtData;
-			const _FlowPrecision *duData,*dvData;
-			imdxData=imdx.data();
-			imdyData=imdy.data();
-			imdtData=imdt.data();
-			duData=du.data();
-			dvData=dv.data();
-
-			//double _a  = 10000, _b = 0.1;
-			if(nChannels==1)
-				for(int i=0;i<nPixels;i++)
-				{
-					temp=imdtData[i]+imdxData[i]*duData[i]+imdyData[i]*dvData[i];
-					//if(temp*temp<0.04)
-					// psiData[i]=1/(2*sqrt(temp*temp+varepsilon_psi));
-					//psiData[i] = _a*_b/(1+_a*temp*temp);
-
-					// the following code is for log Gaussian mixture probability model
-					temp *= temp;
-					switch(noiseModel)
-					{
-					case GMixture:
-						prob1 = GMPara.Gaussian(temp,0,0)*GMPara.alpha[0];
-						prob2 = GMPara.Gaussian(temp,1,0)*(1-GMPara.alpha[0]);
-						prob11 = prob1/(2*GMPara.sigma_square[0]);
-						prob22 = prob2/(2*GMPara.beta_square[0]);
-						psiData[i] = (prob11+prob22)/(prob1+prob2);
-						break;
-					case Lap:
-						if(LapPara[0]<1E-20)
-							continue;
-						psiData[i]=1/(2*sqrt(temp+varepsilon_psi)*LapPara[0]);
-						break;
-					}
-				}
-			else
-				for(int i=0;i<nPixels;i++)
-					for(int k=0;k<nChannels;k++)
-					{
-						int offset=i*nChannels+k;
-						temp=imdtData[offset]+imdxData[offset]*duData[i]+imdyData[offset]*dvData[i];
-						//if(temp*temp<0.04)
-						 // psiData[offset]=1/(2*sqrt(temp*temp+varepsilon_psi));
-						//psiData[offset] =  _a*_b/(1+_a*temp*temp);
-						temp *= temp;
-						switch(noiseModel)
-						{
-						case GMixture:
-							prob1 = GMPara.Gaussian(temp,0,k)*GMPara.alpha[k];
-							prob2 = GMPara.Gaussian(temp,1,k)*(1-GMPara.alpha[k]);
-							prob11 = prob1/(2*GMPara.sigma_square[k]);
-							prob22 = prob2/(2*GMPara.beta_square[k]);
-							psiData[offset] = (prob11+prob22)/(prob1+prob2);
-							break;
-						case Lap:
-							if(LapPara[k]<1E-20)
-								continue;
-							psiData[offset]=1/(2*sqrt(temp+varepsilon_psi)*LapPara[k]);
-							break;
-						}
-					}
-
-			// prepare the components of the large linear system
-			ImDxy.Multiply(Psi_1st,imdx,imdy);
-			ImDx2.Multiply(Psi_1st,imdx,imdx);
-			ImDy2.Multiply(Psi_1st,imdy,imdy);
-			ImDtDx.Multiply(Psi_1st,imdx,imdt);
-			ImDtDy.Multiply(Psi_1st,imdy,imdt);
-
-			if(nChannels>1)
-			{
-				ImDxy.collapse(imdxy);
-				ImDx2.collapse(imdx2);
-				ImDy2.collapse(imdy2);
-				ImDtDx.collapse(imdtdx);
-				ImDtDy.collapse(imdtdy);
-			}
-			else
-			{
-				imdxy.copyData(ImDxy);
-				imdx2.copyData(ImDx2);
-				imdy2.copyData(ImDy2);
-				imdtdx.copyData(ImDtDx);
-				imdtdy.copyData(ImDtDy);
-			}
-
-			// filtering
-			//imdx2.smoothing(A11,3);
-			//imdxy.smoothing(A12,3);
-			//imdy2.smoothing(A22,3);
-			A11.copyData(imdx2);
-			A12.copyData(imdxy);
-			A22.copyData(imdy2);
-
-			// add epsilon to A11 and A22
-			A11.Add(alpha*0.5);
-			A22.Add(alpha*0.5);
-
-			// form b
-			//imdtdx.smoothing(b1,3);
-			//imdtdy.smoothing(b2,3);
-			b1.copyData(imdtdx);
-			b2.copyData(imdtdy);
-
-			// laplacian filtering of the current flow field
-		  total_Laplacian+= Laplacian(foo1,u,Phi_1st);
-			total_Laplacian+= Laplacian(foo2,v,Phi_1st);
-			_FlowPrecision *b1Data,*b2Data;
-			const _FlowPrecision *foo1Data,*foo2Data;
-			b1Data=b1.data();
-			b2Data=b2.data();
-			foo1Data=foo1.data();
-			foo2Data=foo2.data();
-
-			for(int i=0;i<nPixels;i++)
-			{
-				b1Data[i]=-b1Data[i]-alpha*foo1Data[i];
-				b2Data[i]=-b2Data[i]-alpha*foo2Data[i];
-			}
-
-			// for debug only, displaying the matrix coefficients
-			//A11.imwrite("A11.bmp",ImageIO::normalized);
-			//A12.imwrite("A12.bmp",ImageIO::normalized);
-			//A22.imwrite("A22.bmp",ImageIO::normalized);
-			//b1.imwrite("b1.bmp",ImageIO::normalized);
-			//b2.imwrite("b2.bmp",ImageIO::normalized);
-
-			//-----------------------------------------------------------------------
-			// conjugate gradient algorithm
-			//-----------------------------------------------------------------------
-			r1.copyData(b1);
-			r2.copyData(b2);
-			du.reset();
-			dv.reset();
-
-			for(int k=0;k<nCGIterations;k++)
-			{
-				rou[k]=r1.norm2()+r2.norm2();
-				//cout<<rou[k]<<endl;
-				if(rou[k]<1E-10)
-					break;
-				if(k==0)
-				{
-					p1.copyData(r1);
-					p2.copyData(r2);
-				}
-				else
-				{
-					double ratio=rou[k]/rou[k-1];
-					total_add+=p1.Add(r1,p1,ratio);
-					total_add+=p2.Add(r2,p2,ratio);
-				}
-				// go through the large linear system
-				foo1.Multiply(A11,p1);
-				foo2.Multiply(A12,p2);
-				q1.Add(foo1,foo2);
-				total_Laplacian+= Laplacian(foo1,p1,Phi_1st);
-				q1.Add(foo1,alpha);
-
-				foo1.Multiply(A12,p1);
-				foo2.Multiply(A22,p2);
-				q2.Add(foo1,foo2);
-				total_Laplacian+= Laplacian(foo2,p2,Phi_1st);
-				q2.Add(foo2,alpha);
-
-				double beta;
-				beta=rou[k]/(p1.innerproduct(q1)+p2.innerproduct(q2));
-
-				du.Add(p1,beta);
-				dv.Add(p2,beta);
-
-				r1.Add(q1,-beta);
-				r2.Add(q2,-beta);
-			}
-			//-----------------------------------------------------------------------
-			// end of conjugate gradient algorithm
-			//-----------------------------------------------------------------------
-		}// end of inner fixed point iteration
-
-		// the following procedure is merely for debugging
-		//cout<<"du "<<du.norm2()<<" dv "<<dv.norm2()<<endl;
-		// update the flow field
-		u.Add(du,1);
-		v.Add(dv,1);
-		if(interpolation == Bilinear)
-			warpFL(warpIm2,Im1,Im2,u,v);
-		else
-		{
-			total_warpImageBicubicRef+= Im2.warpImageBicubicRef(Im1,warpIm2,u,v);
-			total_threshold+=warpIm2.threshold();
-		}
-
-		//Im2.warpImageBicubicRef(Im1,warpIm2,BicubicCoeff,u,v);
-
-		// estimate noise level
-		switch(noiseModel)
-		{
-		case GMixture:
-			estGaussianMixture(Im1,warpIm2,GMPara);
-			break;
-		case Lap:
-			total_estLaplacianNoise+=estLaplacianNoise(Im1,warpIm2,LapPara);
-		}
-
-	}// end of outer fixed point iteration
-	delete rou;
-}
 
 void OpticalFlow::estGaussianMixture(const DImage& Im1,const DImage& Im2,GaussianMixture& para,double prior)
 {
@@ -1010,12 +698,10 @@ double OpticalFlow::Laplacian(DImage &output, const DImage &input, const DImage&
 				if(j>0)
 					outputData[offset]+=fooData[offset-1];
 			}
-	}
-	foo.reset();
 
-	// vertical filtering
-	#pragma omp parallel num_threads(GLOBAL_nThreads)
-	{
+		#pragma omp barrier 
+		foo.reset();
+
 		#pragma omp for
 		for(int i=0;i<height-1;i++)
 			for(int j=0;j<width;j++)
@@ -1080,7 +766,7 @@ void OpticalFlow::testLaplacian(int dim)
 //					and passed back to Python using the TIMING_PROFILE map
 //
 //-------------------------------------------------------
-void myfunc(){cout<<"helo";}
+void myfunc(){cout<<"heloo";}
 void OpticalFlow::Coarse2FineFlow(map<string,string>* TIMING_PROFILE, DImage &vx, DImage &vy, DImage &warpI2,const DImage &Im1, const DImage &Im2, int pyramidLevels, int nCores)
 {
 	// ASSERT: Coarse2FineFlow will always execute before Image.h > Global Variables will always be defined
@@ -1130,6 +816,7 @@ void OpticalFlow::Coarse2FineFlow(map<string,string>* TIMING_PROFILE, DImage &vx
 
 
 	// P Y R A M I D
+	double image_flow_begin, image_flow_end,duration_image_flow;
 	for(int k=GPyramid1.nlevels()-1;k>=0;k--)
 	{
 		//=== [P] DEBUG: Pyramid Level
@@ -1168,12 +855,12 @@ void OpticalFlow::Coarse2FineFlow(map<string,string>* TIMING_PROFILE, DImage &vx
 		//
 
 		//=== [P]: Calculate Optical Flow
-		double image_flow_begin=timer();
+		image_flow_begin=timer();
 		SmoothFlowSOR(Image1,Image2,WarpImage2,vx,vy,alpha,nOuterFPIterations+k,nInnerFPIterations,nCGIterations+k*3, nCores);
-		double image_flow_end=timer();
+		image_flow_end=timer();
 
 		//=== [P]: Timing
-		double duration_image_flow=image_flow_end-image_flow_begin;
+		duration_image_flow=image_flow_end-image_flow_begin;
 		duration_total_flow+=duration_image_flow;
 
 		//=== [P] DEBUG: print elapsed time for this pyramid level
@@ -1186,15 +873,18 @@ void OpticalFlow::Coarse2FineFlow(map<string,string>* TIMING_PROFILE, DImage &vx
 
 
 	//PHASE: PostProcessing
+	PostProcessing=timer();
 	total_warpImageBicubicRef+= Im2.warpImageBicubicRef(Im1,warpI2,vx,vy);
 	total_threshold+=warpI2.threshold();
+	PostProcessing=timer()-PostProcessing;
 	//
+
 
 	TotalExecution=timer()-TotalExecution;
 
 	// === Output: Store the values
-	GLOBAL_timingMap->insert( make_pair("Total Flow Calculation",to_string( duration_total_flow )) );
 	GLOBAL_timingMap->insert( make_pair("Total C++ Execution",to_string( TotalExecution )) );
+	//GLOBAL_timingMap->insert( make_pair("Total Flow Calculation",to_string( duration_total_flow )) );
 	GLOBAL_timingMap->insert( make_pair("Construction",to_string( Construction )) );
 	GLOBAL_timingMap->insert( make_pair("Allocation",to_string( Allocation )) );
 	GLOBAL_timingMap->insert( make_pair("Phase1_Generate",to_string( Phase1_Generate )) );
