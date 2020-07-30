@@ -4,5 +4,7 @@ compile:
 run:
 	python3 TestSuite.py
 
+all: compile run
+
 clean:
 	rm -rf ./output/*

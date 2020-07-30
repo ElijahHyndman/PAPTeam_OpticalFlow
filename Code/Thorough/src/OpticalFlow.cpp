@@ -272,6 +272,7 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 	//--------------------------------------------------------------------------
 	for(int count=0;count<nOuterFPIterations;count++)
 	{
+		cout <<"phase 1"<<endl;
 		//PHASE: Phase1_generate
 		start_time=timer();
 		// Compute the gradient
@@ -295,6 +296,7 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 		for(int hh=0;hh<nInnerFPIterations;hh++)
 		{
 			//PHASE: Phase2_Derivatives
+			cout <<"phase 2"<<endl;
 			start_time=timer();
 			// compute the derivatives of the current flow field
 			if(hh==0)
@@ -338,7 +340,6 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 				}
 			}
 
-
 			// compute the nonlinear term of psi
 			Psi_1st.reset();
 			_FlowPrecision* psiData=Psi_1st.data();
@@ -352,6 +353,7 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 
 
 			//PHASE: Phase3_PsiData
+			cout<<"phase 3"<<endl;
 			start_time=timer();
 			//double _a  = 10000, _b = 0.1;
 			if(nChannels==1)
@@ -420,7 +422,7 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 			Phase3_PsiData+=timer()-start_time;
 			//
 
-
+			cout<<"phase 4..."<<endl;
 			//PHASE: Phase4_LinearSystem
 			start_time=timer();
 			// prepare the components of the large linear system
@@ -465,7 +467,7 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 			du.reset();
 			dv.reset();
 
-
+			cout << "Phase 5"<<endl;
 			//PHASE: Phase5_SOR
 			start_time=timer();
 			for(int k = 0; k<nSORIterations; k++)
@@ -524,7 +526,7 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 		Phase5_SOR+=timer()-start_time;
 		//
 
-
+		cout<<"Phase 6!"<<endl;
 		//PHASE: Phase6_Update
 		start_time=timer();
 		total_add+=u.Add(du);
@@ -548,6 +550,7 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 		}
 		Phase6_Update+=timer()-start_time;
 		//
+		cout<<"end SOR"<<flush;
 	}
 }	// End SmoothFlowSOR
 
@@ -1176,7 +1179,9 @@ void OpticalFlow::Coarse2FineFlow(map<string,string>* TIMING_PROFILE, DImage &vx
 		//=== [P] DEBUG: print elapsed time for this pyramid level
 		debug_timer=timer()-debug_timer;
 		cout<<"("<< fixed<<setprecision(1)<<debug_timer <<"s) "<<flush;
-	}	printf("! \n");
+	}
+	printf("! \n");
+	cout<<flush;
 	// End Pyramid
 
 

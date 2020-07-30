@@ -378,7 +378,7 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 				imdtdy.copyData(ImDtDy);
 			}
 			// laplacian filtering of the current flow field
-		    Laplacian(foo1,u,Phi_1st);
+		  Laplacian(foo1,u,Phi_1st);
 			Laplacian(foo2,v,Phi_1st);
 
 			for(int i=0;i<nPixels;i++)
