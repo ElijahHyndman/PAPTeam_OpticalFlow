@@ -188,7 +188,7 @@ double OpticalFlow::genInImageMask(DImage &mask, const DImage &vx, const DImage 
 
 	#pragma omp parallel num_threads(GLOBAL_nThreads)
 	{
-		#pragma omp for
+		#pragma omp for schedule(static) collapse(2)
 		for(int i=0;i<imHeight;i++)
 			for(int j=0;j<imWidth;j++)
 			{
@@ -278,7 +278,6 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 		TotalGetDxs=timer();
 		getDxs(imdx,imdy,imdt,Im1,warpIm2);
 		TotalGetDxs=timer()-TotalGetDxs;
-
 		// Generate the mask to set the weight of the pxiels moving outside of the image boundary to be zero
 		total_genInImageMask+=genInImageMask(mask,u,v);
 		Phase1_Generate+=timer()-start_time;
@@ -326,7 +325,7 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 			vyData=vy.data();
 			//double power_alpha = 0.5;
 
-			#pragma omp parallel
+			#pragma omp parallel num_threads(GLOBAL_nThreads)
 			{
 				#pragma omp for
 				for(int i=0;i<nPixels;i++)
@@ -384,9 +383,9 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 			}
 			else // Multiple Channels
 			{
-				#pragma omp parallel
+				#pragma omp parallel num_threads(GLOBAL_nThreads)
 				{
-					#pragma omp for
+					#pragma omp for schedule(static) collapse(2)
 					for(int i=0;i<nPixels;i++)
 						for(int k=0;k<nChannels;k++)
 						{
@@ -467,59 +466,59 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 
 			//PHASE: Phase5_SOR
 			start_time=timer();
-			for(int k = 0; k<nSORIterations; k++)
-				#pragma omp parallel num_threads(nCores)
-				{
-					#pragma omp for
-					for(int i = 0; i<imHeight; i++)
-						for(int j = 0; j<imWidth; j++)
-						{
-							// Assert: offset is unique to each loop, no race conditions
-							int offset = i * imWidth+j;
-							double sigma1 = 0, sigma2 = 0, coeff = 0;
-	                        double _weight;
+			#pragma omp parallel num_threads(nCores)
+			{
+				#pragma omp for schedule(static) collapse(3)
+				for(int k = 0; k<nSORIterations; k++)
+						for(int i = 0; i<imHeight; i++)
+							for(int j = 0; j<imWidth; j++)
+							{
+								// Assert: offset is unique to each loop, no race conditions
+								int offset = i * imWidth+j;
+								double sigma1 = 0, sigma2 = 0, coeff = 0;
+		                        double _weight;
 
 
-							if(j>0)
-							{
-	                            _weight = phiData[offset-1];
-								sigma1  += _weight*du.data()[offset-1];
-								sigma2  += _weight*dv.data()[offset-1];
-								coeff   += _weight;
-							}
-							if(j<imWidth-1)
-							{
-	                            _weight = phiData[offset];
-								sigma1 += _weight*du.data()[offset+1];
-								sigma2 += _weight*dv.data()[offset+1];
-								coeff   += _weight;
-							}
-							if(i>0)
-							{
-	                            _weight = phiData[offset-imWidth];
-								sigma1 += _weight*du.data()[offset-imWidth];
-								sigma2 += _weight*dv.data()[offset-imWidth];
-								coeff   += _weight;
-							}
-							if(i<imHeight-1)
-							{
-	                            _weight = phiData[offset];
-								sigma1  += _weight*du.data()[offset+imWidth];
-								sigma2  += _weight*dv.data()[offset+imWidth];
-								coeff   += _weight;
-							}
-							sigma1 *= -alpha;
-							sigma2 *= -alpha;
-							coeff *= alpha;
-							 // compute du
-							sigma1 += imdxy.data()[offset]*dv.data()[offset];
-							du.data()[offset] = (1-omega)*du.data()[offset] + omega/(imdx2.data()[offset] + alpha*0.05 + coeff)*(imdtdx.data()[offset] - sigma1);
-							// compute dv
-							sigma2 += imdxy.data()[offset]*du.data()[offset];
-							dv.data()[offset] = (1-omega)*dv.data()[offset] + omega/(imdy2.data()[offset] + alpha*0.05 + coeff)*(imdtdy.data()[offset] - sigma2);
-						}
-				} // End pragma omp parallel
-		} // End SOR Iteration
+								if(j>0)
+								{
+		                            _weight = phiData[offset-1];
+									sigma1  += _weight*du.data()[offset-1];
+									sigma2  += _weight*dv.data()[offset-1];
+									coeff   += _weight;
+								}
+								if(j<imWidth-1)
+								{
+		                            _weight = phiData[offset];
+									sigma1 += _weight*du.data()[offset+1];
+									sigma2 += _weight*dv.data()[offset+1];
+									coeff   += _weight;
+								}
+								if(i>0)
+								{
+		                            _weight = phiData[offset-imWidth];
+									sigma1 += _weight*du.data()[offset-imWidth];
+									sigma2 += _weight*dv.data()[offset-imWidth];
+									coeff   += _weight;
+								}
+								if(i<imHeight-1)
+								{
+		                            _weight = phiData[offset];
+									sigma1  += _weight*du.data()[offset+imWidth];
+									sigma2  += _weight*dv.data()[offset+imWidth];
+									coeff   += _weight;
+								}
+								sigma1 *= -alpha;
+								sigma2 *= -alpha;
+								coeff *= alpha;
+								 // compute du
+								sigma1 += imdxy.data()[offset]*dv.data()[offset];
+								du.data()[offset] = (1-omega)*du.data()[offset] + omega/(imdx2.data()[offset] + alpha*0.05 + coeff)*(imdtdx.data()[offset] - sigma1);
+								// compute dv
+								sigma2 += imdxy.data()[offset]*du.data()[offset];
+								dv.data()[offset] = (1-omega)*dv.data()[offset] + omega/(imdy2.data()[offset] + alpha*0.05 + coeff)*(imdtdy.data()[offset] - sigma2);
+							} // end SOR loops
+				} // End parallel
+		} // End InnerFPIterations
 		Phase5_SOR+=timer()-start_time;
 		//
 
@@ -547,7 +546,8 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 		}
 		Phase6_Update+=timer()-start_time;
 		//
-	}
+
+	} // End OuterFPIterations
 }	// End SmoothFlowSOR
 
 
@@ -605,6 +605,7 @@ void OpticalFlow::estGaussianMixture(const DImage& Im1,const DImage& Im2,Gaussia
 	}
 }
 
+
 double OpticalFlow::estLaplacianNoise(const DImage& Im1,const DImage& Im2,Vector<double>& para)
 {
 	double start=timer();
@@ -619,26 +620,20 @@ double OpticalFlow::estLaplacianNoise(const DImage& Im1,const DImage& Im2,Vector
 	for(int k = 0;k<nChannels;k++)
 		total[k] = 0;
 
-	//#pragma omp parallel num_threads(GLOBAL_nThreads)
-	//{
-		//#pragma omp for
-		for(int i =0;i<Im1.npixels();i++)
-			for(int k = 0;k<nChannels;k++)
+	for(int i =0;i<Im1.npixels();i++)
+		for(int k = 0;k<nChannels;k++)
+		{
+			// offset = this channel
+			int offset = i*nChannels+k;
+			temp= fabs(Im1.data()[offset]-Im2.data()[offset]);
+			if(temp>0 && temp<1000000)
 			{
-				// offset = this channel
-				int offset = i*nChannels+k;
-				temp= fabs(Im1.data()[offset]-Im2.data()[offset]);
-				if(temp>0 && temp<1000000)
-				{
-					// k={0,1,2} so these will need to be Pragma ATOMIC
-					#pragma omp atomic
-					para[k] += temp;
+				// k={0,1,2} so these will need to be Pragma ATOMIC
+				para[k] += temp;
 
-					#pragma omp atomic
-					total[k]++;
-				}
+				total[k]++;
 			}
-	//}//end parallel
+		}
 
 
 	for(int k = 0;k<nChannels;k++)
@@ -657,6 +652,7 @@ double OpticalFlow::estLaplacianNoise(const DImage& Im1,const DImage& Im2,Vector
 	double end=timer();
 	return end-start;
 }
+
 /*
 double OpticalFlow::Laplacian(DImage &output, const DImage &input, const DImage& weight)
 {
@@ -761,7 +757,7 @@ double OpticalFlow::Laplacian(DImage &output, const DImage &input, const DImage&
 					outputData[offset]+=fooData[offset-1];
 			}
 
-		#pragma omp barrier
+
 		foo.reset();
 
 		#pragma omp for schedule(static) collapse(2)
@@ -941,7 +937,7 @@ void OpticalFlow::Coarse2FineFlow(map<string,string>* TIMING_PROFILE, DImage &vx
 
 	// === Output: Store the values
 	GLOBAL_timingMap->insert( make_pair("Total C++ Execution",to_string( TotalExecution )) );
-	//GLOBAL_timingMap->insert( make_pair("Total Flow Calculation",to_string( duration_total_flow )) );
+					//GLOBAL_timingMap->insert( make_pair("Total Flow Calculation",to_string( duration_total_flow )) );
 	GLOBAL_timingMap->insert( make_pair("Construction",to_string( Construction )) );
 	GLOBAL_timingMap->insert( make_pair("Allocation",to_string( Allocation )) );
 	GLOBAL_timingMap->insert( make_pair("Phase1_Generate",to_string( Phase1_Generate )) );
@@ -953,8 +949,8 @@ void OpticalFlow::Coarse2FineFlow(map<string,string>* TIMING_PROFILE, DImage &vx
 	GLOBAL_timingMap->insert( make_pair("PostProcessing",to_string( PostProcessing )) );
 
 
-	//GLOBAL_timingMap->insert( make_pair("_Total getDxs",to_string( TotalGetDxs )) );
-	//GLOBAL_timingMap->insert( make_pair("Generate Pyramid Levels",to_string( GeneratePyramidLevels )) );
+	// GLOBAL_timingMap->insert( make_pair("_Total getDxs",to_string( TotalGetDxs )) );
+	// GLOBAL_timingMap->insert( make_pair("Generate Pyramid Levels",to_string( GeneratePyramidLevels )) );
 	// GLOBAL_timingMap->insert( make_pair("im2feature",to_string( total_im2feature )) );
 	// GLOBAL_timingMap->insert( make_pair("multiplyWith",to_string( total_Multiplywith )) );
 	// GLOBAL_timingMap->insert( make_pair("dx",to_string( total_dx )) );

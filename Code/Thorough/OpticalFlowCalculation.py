@@ -132,9 +132,9 @@ def generateOutput(imagePair, nLevels, nCores, flow, imDimensions, timingDiction
         OUTPUT_TIMINGFILE_PATH=os.path.join(outputPath,Timing_OutputFile)
 
     # === Create the final output files
-    if (0):
+    if (1):
         generateOutputFlowImageFile(OUTPUT_IMAGEFILE_PATH,flow,imDimensions)
-    generateOutputTimingFile(OUTPUT_TIMINGFILE_PATH,timingDictionary)
+    generateOutputTimingFile(OUTPUT_TIMINGFILE_PATH,timingDictionary,imagePair,nCores)
 
 
 
@@ -163,7 +163,7 @@ def generateOutputFlowImageFile(outputImagePath,flow, imDimensions):
 
 
 
-def generateOutputTimingFile(outputFilePath, timingDictionary):
+def generateOutputTimingFile(outputFilePath, timingDictionary, imagePair, nCores):
     # We will write the header first, if the file does not exist yet
     writeHeader= not os.path.exists(outputFilePath)
     f = open(outputFilePath,'a')
@@ -175,6 +175,8 @@ def generateOutputTimingFile(outputFilePath, timingDictionary):
         f.write(HeaderString+'\n')
 
     # Join all of the values in the timingDictionary, delimit with delimiter string
+    frameDeclaration=imagePair.BEFORE.IMAGE_PARENT.split('_')[-1]+' pixels '+str(nCores)+' threads'+delimiter
+    f.write(frameDeclaration)
     timingString=delimiter.join( timingDictionary.values() )
     f.write(timingString+'\n')
     f.close()

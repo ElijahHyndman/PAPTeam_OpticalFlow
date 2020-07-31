@@ -980,7 +980,7 @@ double Image<T>::dx(Image<T1>& result,bool IsAdvancedFilter) const
 
 		#pragma omp parallel num_threads(GLOBAL_nThreads)
 		{
-			#pragma omp for
+			#pragma omp for schedule(static)
 			for(i=0;i<imHeight;i++)
 				for(j=0;j<imWidth-1;j++)
 				{
@@ -1874,7 +1874,7 @@ double Image<T>::Multiplywith(double value)
 
 	#pragma omp parallel num_threads(GLOBAL_nThreads)
 	{
-		#pragma omp for
+		#pragma omp for schedule(static)
 		for(int i=0;i<nElements;i++)
 			pData[i]*=value;
 	}
@@ -1954,8 +1954,13 @@ double Image<T>::Add(const Image<T1>& image1,const double ratio)
 		return 0.0;
 	}
 	const T1*& pData1=image1.data();
-	for(int i=0;i<nElements;i++)
-		pData[i]+=pData1[i]*ratio;
+
+	#pragma omp parallel num_threads(GLOBAL_nThreads)
+	{
+		#pragma omp for schedule(static)
+		for(int i=0;i<nElements;i++)
+			pData[i]+=pData1[i]*ratio;
+	}
 
 	double end=timer();
 	return end-start;
@@ -2639,6 +2644,7 @@ void Image<T>::warpImageBicubicCoeff(Image<T1>& output) const
 		}
 }
 
+/********Enter********/
 template <class T>
 template <class T1>
 double Image<T>::warpImageBicubicRef(const Image<T>& ref,Image<T>& output,const Image<T1>& vx,const Image<T1>& vy) const
@@ -2675,6 +2681,7 @@ void Image<T>::DissembleFlow(Image<T1>& vx,Image<T1>& vy) const
 	}
 }
 
+/*************the one that does Heavy lifting************/
 template <class T>
 template <class T1,class T2>
 double Image<T>::warpImageBicubicRef(const Image<T>& ref,Image<T>& output,const Image<T1>& imdx,const Image<T1>& imdy,const Image<T1>& imdxdy,
@@ -2700,10 +2707,10 @@ double Image<T>::warpImageBicubicRef(const Image<T>& ref,Image<T>& output,const 
 		ImgMax = 1;
 	else
 		ImgMax = 255;
-
-	//#pragma omp parallel num_threads(GLOBAL_nThreads)
-	//{
-		//#pragma omp for
+	//
+	// #pragma omp parallel num_threads(GLOBAL_nThreads)
+	// {
+	// 	#pragma omp for schedule(static) collapse(2)
 		for(int i  = 0; i<height; i++)
 			for(int j = 0;j<width;j++)
 			{
@@ -2754,7 +2761,7 @@ double Image<T>::warpImageBicubicRef(const Image<T>& ref,Image<T>& output,const 
 
 				}
 			}
-	//}
+	// }
 
 	double end=timer();
 	return end-start;
