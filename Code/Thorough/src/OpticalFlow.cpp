@@ -657,7 +657,7 @@ double OpticalFlow::estLaplacianNoise(const DImage& Im1,const DImage& Im2,Vector
 	double end=timer();
 	return end-start;
 }
-
+/*
 double OpticalFlow::Laplacian(DImage &output, const DImage &input, const DImage& weight)
 {
 	double start=timer();
@@ -699,7 +699,7 @@ double OpticalFlow::Laplacian(DImage &output, const DImage &input, const DImage&
 					outputData[offset]+=fooData[offset-1];
 			}
 
-		#pragma omp barrier 
+		#pragma omp barrier
 		foo.reset();
 
 		#pragma omp for
@@ -724,6 +724,63 @@ double OpticalFlow::Laplacian(DImage &output, const DImage &input, const DImage&
 	double end=timer();
 	return end-start;
 }
+*/
+
+double OpticalFlow::Laplacian(DImage &output, const DImage &input, const DImage& weight)
+{
+	double start=timer();
+
+	if(output.matchDimension(input)==false)
+		output.allocate(input);
+	output.reset();
+
+	if(input.matchDimension(weight)==false)
+	{
+		cout<<"Error in image dimension matching OpticalFlow::Laplacian()!"<<endl;
+		return 0.0;
+	}
+
+	const _FlowPrecision *inputData=input.data(),*weightData=weight.data();
+	int width=input.width(),height=input.height();
+	DImage foo(width,height);
+	_FlowPrecision *fooData=foo.data(),*outputData=output.data();
+
+
+	// horizontal filtering
+	#pragma omp parallel num_threads(GLOBAL_nThreads)
+	{
+		#pragma omp for schedule(static) collapse(2)
+		for(int i=0;i<height;i++)
+			for(int j=0;j<width-1;j++)
+			{
+				int offset=i*width+j;
+				fooData[offset]=(inputData[offset+1]-inputData[offset])*weightData[offset];
+				if(j<width-1)
+					outputData[offset]-=fooData[offset];
+				if(j>0)
+					outputData[offset]+=fooData[offset-1];
+			}
+
+		#pragma omp barrier
+		foo.reset();
+
+		#pragma omp for schedule(static) collapse(2)
+		for(int i=0;i<height-1;i++)
+			for(int j=0;j<width;j++)
+			{
+				int offset=i*width+j;
+				fooData[offset]=(inputData[offset+width]-inputData[offset])*weightData[offset];
+				if(i<height-1)
+					outputData[offset]-=fooData[offset];
+				if(i>0)
+					outputData[offset]+=fooData[offset-width];
+			}
+	}
+
+	double end=timer();
+	return end-start;
+}
+
 
 void OpticalFlow::testLaplacian(int dim)
 {

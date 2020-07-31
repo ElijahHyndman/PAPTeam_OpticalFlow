@@ -499,7 +499,7 @@ void ImageProcessing::warpImage(T1 *pWarpIm2, const T1 *pIm1, const T1 *pIm2, co
 
 	#pragma omp parallel num_threads(GLOBAL_nThreads)
 	{
-		#pragma omp for 
+		#pragma omp for
 		for(int i=0;i<height;i++)
 			for(int j=0;j<width;j++)
 			{
@@ -545,22 +545,27 @@ void ImageProcessing::warpImageFlow(T1 *pWarpIm2, const T1 *pIm1, const T1 *pIm2
 	}
 }
 
+/****************/
 template <class T1,class T2>
 void ImageProcessing::warpImage(T1 *pWarpIm2,const T1 *pIm2, const T2 *pVx, const T2 *pVy, int width, int height, int nChannels)
 {
 	memset(pWarpIm2,0,sizeof(T1)*width*height*nChannels);
-	for(int i=0;i<height;i++)
-		for(int j=0;j<width;j++)
-		{
-			int offset=i*width+j;
-			double x,y;
-			y=i+pVy[offset];
-			x=j+pVx[offset];
-			offset*=nChannels;
-			if(x<0 || x>width-1 || y<0 || y>height-1)
-				continue;
-			BilinearInterpolate(pIm2,width,height,nChannels,x,y,pWarpIm2+offset);
-		}
+	#pragma omp parallel num_threads(GLOBAL_nThreads)
+	{
+		#pragma omp for schedule(static) collapse(2)
+		for(int i=0;i<height;i++)
+			for(int j=0;j<width;j++)
+			{
+				int offset=i*width+j;
+				double x,y;
+				y=i+pVy[offset];
+				x=j+pVx[offset];
+				offset*=nChannels;
+				if(x<0 || x>width-1 || y<0 || y>height-1)
+					continue;
+				BilinearInterpolate(pIm2,width,height,nChannels,x,y,pWarpIm2+offset);
+			}
+	}
 }
 
 template <class T1,class T2>

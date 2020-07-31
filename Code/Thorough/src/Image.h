@@ -1509,16 +1509,17 @@ void Image<T>::collapse(Image<T1> &image,collapse_type type) const
 		image.copy(*this);
 		return;
 	}
+
 	T1* data=image.data();
 	int offset;
 	double temp;
 
-	#pragma omp parallel num_threads(GLOBAL_nThreads)
-	{
-		#pragma omp for
+		/*
+		#pragma omp for schedule(static)
 		for(int i=0;i<nPixels;i++)
 		{
 			offset=i*nChannels;
+
 			switch(type){
 				case collapse_average:
 					temp=0;
@@ -1536,9 +1537,53 @@ void Image<T>::collapse(Image<T1> &image,collapse_type type) const
 					for(int j = 1;j<nChannels;j++)
 						data[i]=__min(data[i],pData[offset+j]);
 					break;
-			}
+			}//end switch
+
 		}
-	}//end parallel
+		*/
+switch(type)
+{
+
+	case collapse_average:
+		#pragma omp parallel num_threads(GLOBAL_nThreads)
+		{
+			#pragma omp for schedule(static)
+			for(int i=0;i<nPixels;i++)
+			{
+				temp=0;
+				offset=i*nChannels;
+				for(int j=0;j<nChannels;j++) temp+=pData[offset+j];
+				data[i]=temp/nChannels;
+			}
+		}// end parallel
+		break;
+
+	case collapse_max:
+		#pragma omp parallel num_threads(GLOBAL_nThreads)
+		{
+			#pragma omp for schedule(static)
+			for(int i=0;i<nPixels;i++)
+			{
+				offset=i*nChannels;
+				data[i]=pData[offset];
+				for(int j=0;j<nChannels;j++) data[i]=__max(data[i],pData[offset+j]);
+			}
+		}// end parallel
+		break;
+
+	case collapse_min:
+		#pragma omp parallel num_threads(GLOBAL_nThreads)
+		{
+			#pragma omp for schedule(static)
+			for(int i=0;i<nPixels;i++)
+			{
+				offset=i*nChannels;
+				data[i]=pData[offset];
+				for(int j=0;j<nChannels;j++) data[i]=__min(data[i],pData[offset+j]);
+			}
+		}// end parallel
+		break;
+	}//end switch
 }
 
 template <class T>
@@ -1737,7 +1782,7 @@ void Image<T>::Multiply(const Image<T1>& image1,const Image<T2>& image2,const Im
 
 	#pragma omp parallel num_threads(GLOBAL_nThreads)
 	{
-		#pragma omp for
+		#pragma omp for schedule(static)
 		for(int i=0;i<nElements;i++)
 			pData[i]=pData1[i]*pData2[i]*pData3[i];
 	}
@@ -1931,7 +1976,8 @@ double Image<T>::Add(const Image<T1>& image1)
 
 	#pragma omp parallel num_threads(GLOBAL_nThreads)
 	{
-		#pragma omp for
+		int chunk=nElements/omp_get_num_threads();
+		#pragma omp for schedule(static,chunk)
 		for(int i=0;i<nElements;i++)
 			pData[i]+=pData1[i];
 	}

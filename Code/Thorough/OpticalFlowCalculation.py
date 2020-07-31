@@ -127,7 +127,8 @@ def generateOutput(imagePair, nLevels, nCores, flow, imDimensions, timingDiction
         Timing_OutputFile=Collection_outputFolderName+'_P{}_C{}.txt'.format(nLevels,nCores)
         OUTPUT_TIMINGFILE_PATH=os.path.join(Timing_outputPath,Timing_OutputFile)
     else:
-        Timing_OutputFile=Collection_outputFolderName+'.txt'
+        #Timing_OutputFile=Collection_outputFolderName+'.txt'
+        Timing_OutputFile='UniversalTiming'+'.txt'
         OUTPUT_TIMINGFILE_PATH=os.path.join(outputPath,Timing_OutputFile)
 
     # === Create the final output files

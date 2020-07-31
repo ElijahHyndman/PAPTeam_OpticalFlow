@@ -47,7 +47,7 @@ def TestRun(Progression='Default',ImagesPerCollection=3,pyramidLevels=3,threadPr
     #   Images per collection may be:
     #       - Specified number of Images or,
     #       - Entire arbitrarily large directory
-    if ImagesPerCollection>1:
+    if ImagesPerCollection>=1:
         numberOfCollections=len(CollectionProgressions[Progression])
         totalImages*=ImagesPerCollection*numberOfCollections
     else:
@@ -87,5 +87,5 @@ def TestRun(Progression='Default',ImagesPerCollection=3,pyramidLevels=3,threadPr
 
 # === Running Tests
 begin=time.perf_counter()
-TestRun(Progression='Full',ImagesPerCollection=1,pyramidLevels=6,threadProgression=(1,4),Repetitions=1,outputSuffix='_timed')
+TestRun(Progression='Full',ImagesPerCollection=1,pyramidLevels=6,threadProgression=(1,2,4),Repetitions=1,outputSuffix='_timed')
 print('Program Execution time: {:.2f}'.format(time.perf_counter()-begin))
