@@ -1,0 +1,2 @@
+/home/parallels/PAPTeam_ubuntu/OpticalFlow/Code/Experiment/pyflow/output/Teddy/timing/Teddy_P6.txtImage Warp,Pyramid Construction,Total Run,[P0],[P1],[P2],[P3],[P4],[P5]
+0.022173,0.072968,2.298959,0.899702,0.553064,0.333699,0.208280,0.128861,0.080066
