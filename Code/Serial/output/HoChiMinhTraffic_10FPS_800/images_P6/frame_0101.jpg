@@ -1,8 +1,0 @@
-import os
-
-print(os.getcwd())
-iterator=os.walk('.')
-for path, directory, images in iterator:
-    images.sort()
-    for i in range(len(images)):
-        os.rename(images[i], ('frame_%04d.jpg' % i) )

@@ -10,6 +10,9 @@ cimport coarse2Fine
 from libcpp.map cimport map
 from libcpp.string cimport string
 
+from cython.parallel cimport parallel
+cimport openmp
+
 # Author: Deepak Pathak (c) 2016
 
 
@@ -55,12 +58,13 @@ def coarse2fine_flow(   np.ndarray[double, ndim=3, mode="c"] Im1 not None,
           save it as a map<string,string>, convert it to a Cython map[string,string]
           and save each entry into a python dictionary
     '''
+    # Calculate Optical Flow and retreive timer map
     cdef map[string,string] TIMER_AS_MAP
     TIMER_AS_MAP = coarse2Fine.Coarse2FineFlowWrapper(&vx[0, 0], &vy[0, 0], &warpI2[0, 0, 0],
                             &Im1[0, 0, 0], &Im2[0, 0, 0],
                             pyramidLevels,
                             h, w, c)
-    # Convert the ('Phase','time') strings to utf-8 encoding
+    # Convert the ('Phase','time') map strings to utf-8 encoding, save into Python Dictionary
     TIMER_AS_DICTIONARY={ PAIR.first.decode('utf-8') : PAIR.second.decode('utf-8') for PAIR in TIMER_AS_MAP}
 
     return TIMER_AS_DICTIONARY, vx, vy, warpI2

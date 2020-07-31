@@ -977,13 +977,18 @@ double Image<T>::dx(Image<T1>& result,bool IsAdvancedFilter) const
 	T1*& data=result.data();
 	int i,j,k,offset;
 	if(IsAdvancedFilter==false)
-		for(i=0;i<imHeight;i++)
-			for(j=0;j<imWidth-1;j++)
-			{
-				offset=i*imWidth+j;
-				for(k=0;k<nChannels;k++)
-					data[offset*nChannels+k]=(T1)pData[(offset+1)*nChannels+k]-pData[offset*nChannels+k];
-			}
+
+		#pragma omp parallel num_threads(GLOBAL_nThreads)
+		{
+			#pragma omp for schedule(static)
+			for(i=0;i<imHeight;i++)
+				for(j=0;j<imWidth-1;j++)
+				{
+					offset=i*imWidth+j;
+					for(k=0;k<nChannels;k++)
+						data[offset*nChannels+k]=(T1)pData[(offset+1)*nChannels+k]-pData[offset*nChannels+k];
+				}
+		}
 	else
 	{
 		double xFilter[5]={1,-8,0,8,-1};
@@ -1020,13 +1025,18 @@ double Image<T>::dy(Image<T1>& result,bool IsAdvancedFilter) const
 	T1*& data=result.data();
 	int i,j,k,offset;
 	if(IsAdvancedFilter==false)
-		for(i=0;i<imHeight-1;i++)
-			for(j=0;j<imWidth;j++)
-			{
-				offset=i*imWidth+j;
-				for(k=0;k<nChannels;k++)
-					data[offset*nChannels+k]=(T1)pData[(offset+imWidth)*nChannels+k]-pData[offset*nChannels+k];
-			}
+
+		#pragma omp parallel num_threads(GLOBAL_nThreads)
+		{
+			#pragma omp for schedule(static)
+			for(i=0;i<imHeight-1;i++)
+				for(j=0;j<imWidth;j++)
+				{
+					offset=i*imWidth+j;
+					for(k=0;k<nChannels;k++)
+						data[offset*nChannels+k]=(T1)pData[(offset+imWidth)*nChannels+k]-pData[offset*nChannels+k];
+				}
+		}
 	else
 	{
 		double yFilter[5]={1,-8,0,8,-1};
@@ -1352,7 +1362,7 @@ void Image<T>::imfilter_hv(Image<T1> &image, const double *hfilter, int hfsize, 
 	pTempBuffer=new T1[nElements];
 	ImageProcessing::hfiltering(pData,pTempBuffer,imWidth,imHeight,nChannels,hfilter,hfsize);
 	ImageProcessing::vfiltering(pTempBuffer,image.data(),imWidth,imHeight,nChannels,vfilter,vfsize);
-    delete[] pTempBuffer;
+  delete[] pTempBuffer;
 }
 
 template <class T>
@@ -1535,6 +1545,9 @@ switch(type)
 {
 
 	case collapse_average:
+		#pragma omp parallel num_threads(GLOBAL_nThreads)
+		{
+			#pragma omp for schedule(static)
 			for(int i=0;i<nPixels;i++)
 			{
 				temp=0;
@@ -1542,24 +1555,33 @@ switch(type)
 				for(int j=0;j<nChannels;j++) temp+=pData[offset+j];
 				data[i]=temp/nChannels;
 			}
+		}// end parallel
 		break;
 
 	case collapse_max:
+		#pragma omp parallel num_threads(GLOBAL_nThreads)
+		{
+			#pragma omp for schedule(static)
 			for(int i=0;i<nPixels;i++)
 			{
 				offset=i*nChannels;
 				data[i]=pData[offset];
 				for(int j=0;j<nChannels;j++) data[i]=__max(data[i],pData[offset+j]);
 			}
+		}// end parallel
 		break;
 
 	case collapse_min:
+		#pragma omp parallel num_threads(GLOBAL_nThreads)
+		{
+			#pragma omp for schedule(static)
 			for(int i=0;i<nPixels;i++)
 			{
 				offset=i*nChannels;
 				data[i]=pData[offset];
 				for(int j=0;j<nChannels;j++) data[i]=__min(data[i],pData[offset+j]);
 			}
+		}// end parallel
 		break;
 	}//end switch
 }
@@ -1758,8 +1780,12 @@ void Image<T>::Multiply(const Image<T1>& image1,const Image<T2>& image2,const Im
 	const T2*& pData2=image2.data();
 	const T3*& pData3=image3.data();
 
-	for(int i=0;i<nElements;i++)
-		pData[i]=pData1[i]*pData2[i]*pData3[i];
+	#pragma omp parallel num_threads(GLOBAL_nThreads)
+	{
+		#pragma omp for schedule(static)
+		for(int i=0;i<nElements;i++)
+			pData[i]=pData1[i]*pData2[i]*pData3[i];
+	}
 }
 
 template <class T>
@@ -1814,8 +1840,12 @@ double Image<T>::Multiplywith(const Image<T1> &image1)
 	}
 	const T1*& pData1=image1.data();
 
-	for(int i=0;i<nElements;i++)
-		pData[i]*=pData1[i];
+	#pragma omp parallel num_threads(GLOBAL_nThreads)
+	{
+		#pragma omp for schedule(static)
+		for(int i=0;i<nElements;i++)
+			pData[i]*=pData1[i];
+	}
 
 	double end=timer();
 	return end-start;
@@ -1842,8 +1872,12 @@ double Image<T>::Multiplywith(double value)
 {
 	double start=timer();
 
-	for(int i=0;i<nElements;i++)
-		pData[i]*=value;
+	#pragma omp parallel num_threads(GLOBAL_nThreads)
+	{
+		#pragma omp for schedule(static)
+		for(int i=0;i<nElements;i++)
+			pData[i]*=value;
+	}
 
 	double end=timer();
 	return end-start;
@@ -1869,8 +1903,12 @@ double Image<T>::Add(const Image<T1>& image1,const Image<T2>& image2)
 	const T1*& pData1=image1.data();
 	const T2*& pData2=image2.data();
 
-	for(int i=0;i<nElements;i++)
-		pData[i]=pData1[i]+pData2[i];
+	#pragma omp parallel num_threads(GLOBAL_nThreads)
+	{
+		#pragma omp for schedule(static)
+		for(int i=0;i<nElements;i++)
+			pData[i]=pData1[i]+pData2[i];
+	}
 
 	double end=timer();
 	return end-start;
@@ -1893,8 +1931,12 @@ double Image<T>::Add(const Image<T1>& image1,const Image<T2>& image2,double rati
 	const T1*& pData1=image1.data();
 	const T2*& pData2=image2.data();
 
-	for(int i=0;i<nElements;i++)
-		pData[i]=pData1[i]+pData2[i]*ratio;
+	#pragma omp parallel num_threads(GLOBAL_nThreads)
+	{
+		#pragma omp parallel for
+		for(int i=0;i<nElements;i++)
+			pData[i]=pData1[i]+pData2[i]*ratio;
+	}
 
 	double end=timer();
 	return end-start;
@@ -1913,8 +1955,12 @@ double Image<T>::Add(const Image<T1>& image1,const double ratio)
 	}
 	const T1*& pData1=image1.data();
 
-	for(int i=0;i<nElements;i++)
-		pData[i]+=pData1[i]*ratio;
+	#pragma omp parallel num_threads(GLOBAL_nThreads)
+	{
+		#pragma omp for schedule(static)
+		for(int i=0;i<nElements;i++)
+			pData[i]+=pData1[i]*ratio;
+	}
 
 	double end=timer();
 	return end-start;
@@ -1933,8 +1979,13 @@ double Image<T>::Add(const Image<T1>& image1)
 	}
 	const T1*& pData1=image1.data();
 
-	for(int i=0;i<nElements;i++)
-		pData[i]+=pData1[i];
+	#pragma omp parallel num_threads(GLOBAL_nThreads)
+	{
+		int chunk=nElements/omp_get_num_threads();
+		#pragma omp for schedule(static,chunk)
+		for(int i=0;i<nElements;i++)
+			pData[i]+=pData1[i];
+	}
 
 	double end=timer();
 	return end-start;
@@ -1945,8 +1996,12 @@ double Image<T>::Add(const T value)
 {
 	double start=timer();
 
-	for(int i=0;i<nElements;i++)
-		pData[i]+=value;
+	#pragma omp parallel num_threads(GLOBAL_nThreads)
+	{
+		#pragma omp for schedule(static)
+		for(int i=0;i<nElements;i++)
+			pData[i]+=value;
+	}
 
 	double end=timer();
 	return end-start;
@@ -1971,8 +2026,12 @@ double Image<T>::Subtract(const Image<T1> &image1, const Image<T2> &image2)
 
 	const T1*& pData1=image1.data();
 	const T2*& pData2=image2.data();
-	for(int i=0;i<nElements;i++)
-		pData[i]=(T)pData1[i]-pData2[i];
+	#pragma omp parallel num_threads(GLOBAL_nThreads)
+	{
+		#pragma omp for schedule(static)
+		for(int i=0;i<nElements;i++)
+			pData[i]=(T)pData1[i]-pData2[i];
+	}
 
 	double end=timer();
 	return end-start;
@@ -2037,8 +2096,12 @@ double Image<T>::threshold()
 		ImgMax = 1;
 	else
 		ImgMax = 255;
-	for(int i = 0;i<nPixels*nChannels;i++)
-		pData[i] = __min(__max(pData[i],0),ImgMax);
+	#pragma omp parallel num_threads(GLOBAL_nThreads)
+	{
+		#pragma omp for schedule(static)
+		for(int i = 0;i<nPixels*nChannels;i++)
+			pData[i] = __min(__max(pData[i],0),ImgMax);
+	}
 
 	double end=timer();
 	return end-start;
@@ -2644,57 +2707,61 @@ double Image<T>::warpImageBicubicRef(const Image<T>& ref,Image<T>& output,const 
 		ImgMax = 1;
 	else
 		ImgMax = 255;
-		
-	for(int i  = 0; i<height; i++)
-		for(int j = 0;j<width;j++)
-		{
-			int offset = i*width+j;
-			double x = j + vx.pData[offset];
-			double y = i + vy.pData[offset];
-			if(x<0 || x>imWidth-1 || y<0 || y>imHeight-1)
+	//
+	// #pragma omp parallel num_threads(GLOBAL_nThreads)
+	// {
+	// 	#pragma omp for schedule(static)
+		for(int i  = 0; i<height; i++)
+			for(int j = 0;j<width;j++)
 			{
-				for(int k = 0; k<nChannels;k++)
-					output.pData[offset*nChannels+k] = ref.pData[offset*nChannels+k];
-				continue;
+				int offset = i*width+j;
+				double x = j + vx.pData[offset];
+				double y = i + vy.pData[offset];
+				if(x<0 || x>imWidth-1 || y<0 || y>imHeight-1)
+				{
+					for(int k = 0; k<nChannels;k++)
+						output.pData[offset*nChannels+k] = ref.pData[offset*nChannels+k];
+					continue;
+				}
+				int x0 = x;
+				int y0 = y;
+				int x1 = x0+1;
+				int y1 = y0+1;
+				x0 = __min(__max(x0,0),imWidth-1);
+				x1 = __min(__max(x1,0),imWidth-1);
+				y0 = __min(__max(y0,0),imHeight-1);
+				y1 = __min(__max(y1,0),imHeight-1);
+
+				double dx = x - x0;
+				double dy = y- y0;
+				double dx2 = dx*dx;
+				double dy2 = dy*dy;
+				double dx3 = dx*dx2;
+				double dy3 = dy*dy2;
+
+
+				for(int k = 0;k<nChannels;k++)
+				{
+					offsets[0][0] = (y0*imWidth+x0)*nChannels + k;
+					offsets[1][0] = (y0*imWidth+x1)*nChannels + k;
+					offsets[0][1] = (y1*imWidth+x0)*nChannels + k;
+					offsets[1][1] = (y1*imWidth+x1)*nChannels + k;
+
+					// set the sampling coefficients
+					BicubicCoeff(a,pIm,pImDx,pImDy,pImDxDy,offsets);
+
+					// now use the coefficients for interpolation
+					output.pData[offset*nChannels+k] = a[0][0] +          a[0][1]*dy +          a[0][2]*dy2 +           a[0][3]*dy3+
+						                                                                    a[1][0]*dx +   a[1][1]*dx*dy   + a[1][2]*dx*dy2   + a[1][3]*dx*dy3 +
+																							a[2][0]*dx2 + a[2][1]*dx2*dy + a[2][2]*dx2*dy2 + a[2][3]*dx2*dy3+
+																							a[3][0]*dx3 + a[3][1]*dx3*dy + a[3][2]*dx3*dy2 + a[3][3]*dx3*dy3;
+					//output.pData[offset*nChannels+k] = __max(__min(output.pData[offset*nChannels+k],ImgMax),0);
+					//if(!(output.pData[offset*nChannels+k]<100000 && output.pData[offset*nChannels+k]>-100000)) // bound the values
+					//	output.pData[offset*nChannels+k] = ref.pData[offset*nChannels+k];
+
+				}
 			}
-			int x0 = x;
-			int y0 = y;
-			int x1 = x0+1;
-			int y1 = y0+1;
-			x0 = __min(__max(x0,0),imWidth-1);
-			x1 = __min(__max(x1,0),imWidth-1);
-			y0 = __min(__max(y0,0),imHeight-1);
-			y1 = __min(__max(y1,0),imHeight-1);
-
-			double dx = x - x0;
-			double dy = y- y0;
-			double dx2 = dx*dx;
-			double dy2 = dy*dy;
-			double dx3 = dx*dx2;
-			double dy3 = dy*dy2;
-
-
-			for(int k = 0;k<nChannels;k++)
-			{
-				offsets[0][0] = (y0*imWidth+x0)*nChannels + k;
-				offsets[1][0] = (y0*imWidth+x1)*nChannels + k;
-				offsets[0][1] = (y1*imWidth+x0)*nChannels + k;
-				offsets[1][1] = (y1*imWidth+x1)*nChannels + k;
-
-				// set the sampling coefficients
-				BicubicCoeff(a,pIm,pImDx,pImDy,pImDxDy,offsets);
-
-				// now use the coefficients for interpolation
-				output.pData[offset*nChannels+k] = a[0][0] +          a[0][1]*dy +          a[0][2]*dy2 +           a[0][3]*dy3+
-					                                                                    a[1][0]*dx +   a[1][1]*dx*dy   + a[1][2]*dx*dy2   + a[1][3]*dx*dy3 +
-																						a[2][0]*dx2 + a[2][1]*dx2*dy + a[2][2]*dx2*dy2 + a[2][3]*dx2*dy3+
-																						a[3][0]*dx3 + a[3][1]*dx3*dy + a[3][2]*dx3*dy2 + a[3][3]*dx3*dy3;
-				//output.pData[offset*nChannels+k] = __max(__min(output.pData[offset*nChannels+k],ImgMax),0);
-				//if(!(output.pData[offset*nChannels+k]<100000 && output.pData[offset*nChannels+k]>-100000)) // bound the values
-				//	output.pData[offset*nChannels+k] = ref.pData[offset*nChannels+k];
-
-			}
-		}
+	// }
 
 	double end=timer();
 	return end-start;
