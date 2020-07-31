@@ -980,7 +980,7 @@ double Image<T>::dx(Image<T1>& result,bool IsAdvancedFilter) const
 
 		#pragma omp parallel num_threads(GLOBAL_nThreads)
 		{
-			#pragma omp for schedule(static)
+			#pragma omp for  
 			for(i=0;i<imHeight;i++)
 				for(j=0;j<imWidth-1;j++)
 				{
@@ -1028,7 +1028,7 @@ double Image<T>::dy(Image<T1>& result,bool IsAdvancedFilter) const
 
 		#pragma omp parallel num_threads(GLOBAL_nThreads)
 		{
-			#pragma omp for schedule(static)
+			#pragma omp for  
 			for(i=0;i<imHeight-1;i++)
 				for(j=0;j<imWidth;j++)
 				{
@@ -1515,7 +1515,7 @@ void Image<T>::collapse(Image<T1> &image,collapse_type type) const
 	double temp;
 
 		/*
-		#pragma omp for schedule(static)
+		#pragma omp for  
 		for(int i=0;i<nPixels;i++)
 		{
 			offset=i*nChannels;
@@ -1547,7 +1547,7 @@ switch(type)
 	case collapse_average:
 		#pragma omp parallel num_threads(GLOBAL_nThreads)
 		{
-			#pragma omp for schedule(static)
+			#pragma omp for  
 			for(int i=0;i<nPixels;i++)
 			{
 				temp=0;
@@ -1561,7 +1561,7 @@ switch(type)
 	case collapse_max:
 		#pragma omp parallel num_threads(GLOBAL_nThreads)
 		{
-			#pragma omp for schedule(static)
+			#pragma omp for  
 			for(int i=0;i<nPixels;i++)
 			{
 				offset=i*nChannels;
@@ -1574,7 +1574,7 @@ switch(type)
 	case collapse_min:
 		#pragma omp parallel num_threads(GLOBAL_nThreads)
 		{
-			#pragma omp for schedule(static)
+			#pragma omp for  
 			for(int i=0;i<nPixels;i++)
 			{
 				offset=i*nChannels;
@@ -1782,7 +1782,7 @@ void Image<T>::Multiply(const Image<T1>& image1,const Image<T2>& image2,const Im
 
 	#pragma omp parallel num_threads(GLOBAL_nThreads)
 	{
-		#pragma omp for schedule(static)
+		#pragma omp for  
 		for(int i=0;i<nElements;i++)
 			pData[i]=pData1[i]*pData2[i]*pData3[i];
 	}
@@ -1842,7 +1842,7 @@ double Image<T>::Multiplywith(const Image<T1> &image1)
 
 	#pragma omp parallel num_threads(GLOBAL_nThreads)
 	{
-		#pragma omp for schedule(static)
+		#pragma omp for  
 		for(int i=0;i<nElements;i++)
 			pData[i]*=pData1[i];
 	}
@@ -1874,7 +1874,7 @@ double Image<T>::Multiplywith(double value)
 
 	#pragma omp parallel num_threads(GLOBAL_nThreads)
 	{
-		#pragma omp for schedule(static)
+		#pragma omp for  
 		for(int i=0;i<nElements;i++)
 			pData[i]*=value;
 	}
@@ -1905,7 +1905,7 @@ double Image<T>::Add(const Image<T1>& image1,const Image<T2>& image2)
 
 	#pragma omp parallel num_threads(GLOBAL_nThreads)
 	{
-		#pragma omp for schedule(static)
+		#pragma omp for  
 		for(int i=0;i<nElements;i++)
 			pData[i]=pData1[i]+pData2[i];
 	}
@@ -1957,7 +1957,7 @@ double Image<T>::Add(const Image<T1>& image1,const double ratio)
 
 	#pragma omp parallel num_threads(GLOBAL_nThreads)
 	{
-		#pragma omp for schedule(static)
+		#pragma omp for  
 		for(int i=0;i<nElements;i++)
 			pData[i]+=pData1[i]*ratio;
 	}
@@ -1998,7 +1998,7 @@ double Image<T>::Add(const T value)
 
 	#pragma omp parallel num_threads(GLOBAL_nThreads)
 	{
-		#pragma omp for schedule(static)
+		#pragma omp for  
 		for(int i=0;i<nElements;i++)
 			pData[i]+=value;
 	}
@@ -2028,7 +2028,7 @@ double Image<T>::Subtract(const Image<T1> &image1, const Image<T2> &image2)
 	const T2*& pData2=image2.data();
 	#pragma omp parallel num_threads(GLOBAL_nThreads)
 	{
-		#pragma omp for schedule(static)
+		#pragma omp for  
 		for(int i=0;i<nElements;i++)
 			pData[i]=(T)pData1[i]-pData2[i];
 	}
@@ -2098,7 +2098,7 @@ double Image<T>::threshold()
 		ImgMax = 255;
 	#pragma omp parallel num_threads(GLOBAL_nThreads)
 	{
-		#pragma omp for schedule(static)
+		#pragma omp for  
 		for(int i = 0;i<nPixels*nChannels;i++)
 			pData[i] = __min(__max(pData[i],0),ImgMax);
 	}
@@ -2710,7 +2710,7 @@ double Image<T>::warpImageBicubicRef(const Image<T>& ref,Image<T>& output,const 
 	//
 	// #pragma omp parallel num_threads(GLOBAL_nThreads)
 	// {
-	// 	#pragma omp for schedule(static)
+	// 	#pragma omp for  
 		for(int i  = 0; i<height; i++)
 			for(int j = 0;j<width;j++)
 			{

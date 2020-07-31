@@ -222,7 +222,7 @@ void ImageProcessing::ResizeImage(const T1* pSrcImage,T2* pDstImage,int SrcWidth
 
 	#pragma omp parallel num_threads(GLOBAL_nThreads)
 	{
-		#pragma omp for schedule(static)
+		#pragma omp for  
 		for(int i=0;i<DstHeight;i++)
 			for(int j=0;j<DstWidth;j++)
 			{
@@ -269,7 +269,7 @@ void ImageProcessing::hfiltering(const T1* pSrcImage,T2* pDstImage,int width,int
 
 	#pragma omp parallel num_threads(GLOBAL_nThreads)
 	{
-		#pragma omp for schedule(static)
+		#pragma omp for  
 		for(i=0;i<height;i++)
 			for(j=0;j<width;j++)
 			{
@@ -365,7 +365,7 @@ void ImageProcessing::vfiltering(const T1* pSrcImage,T2* pDstImage,int width,int
 
 	#pragma omp parallel num_threads(GLOBAL_nThreads)
 	{
-		#pragma omp for schedule(static)
+		#pragma omp for  
 		for(i=0;i<height;i++)
 			for(j=0;j<width;j++)
 			{
@@ -499,7 +499,7 @@ void ImageProcessing::warpImage(T1 *pWarpIm2, const T1 *pIm1, const T1 *pIm2, co
 
 	#pragma omp parallel num_threads(GLOBAL_nThreads)
 	{
-		#pragma omp for schedule(static)
+		#pragma omp for  
 		for(int i=0;i<height;i++)
 			for(int j=0;j<width;j++)
 			{
@@ -525,7 +525,7 @@ void ImageProcessing::warpImageFlow(T1 *pWarpIm2, const T1 *pIm1, const T1 *pIm2
 	memset(pWarpIm2,0,sizeof(T1)*width*height*nChannels);
 	#pragma omp parallel num_threads(GLOBAL_nThreads)
 	{
-		#pragma omp for schedule(static)
+		#pragma omp for  
 		for(int i=0;i<height;i++)
 			for(int j=0;j<width;j++)
 			{
@@ -552,7 +552,7 @@ void ImageProcessing::warpImage(T1 *pWarpIm2,const T1 *pIm2, const T2 *pVx, cons
 	memset(pWarpIm2,0,sizeof(T1)*width*height*nChannels);
 	#pragma omp parallel num_threads(GLOBAL_nThreads)
 	{
-		#pragma omp for schedule(static) 
+		#pragma omp for   
 		for(int i=0;i<height;i++)
 			for(int j=0;j<width;j++)
 			{

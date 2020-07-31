@@ -188,7 +188,7 @@ double OpticalFlow::genInImageMask(DImage &mask, const DImage &vx, const DImage 
 
 	#pragma omp parallel num_threads(GLOBAL_nThreads)
 	{
-		#pragma omp for schedule(static)
+		#pragma omp for
 		for(int i=0;i<imHeight;i++)
 			for(int j=0;j<imWidth;j++)
 			{
@@ -327,7 +327,7 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 
 			#pragma omp parallel num_threads(GLOBAL_nThreads)
 			{
-				#pragma omp for schedule(static)
+				#pragma omp for
 				for(int i=0;i<nPixels;i++)
 				{
 					temp=uxData[i]*uxData[i]+uyData[i]*uyData[i]+vxData[i]*vxData[i]+vyData[i]*vyData[i];
@@ -745,7 +745,7 @@ double OpticalFlow::Laplacian(DImage &output, const DImage &input, const DImage&
 	// horizontal filtering
 	#pragma omp parallel num_threads(GLOBAL_nThreads)
 	{
-		#pragma omp for schedule(static)
+		#pragma omp for
 		for(int i=0;i<height;i++)
 			for(int j=0;j<width-1;j++)
 			{
@@ -760,7 +760,7 @@ double OpticalFlow::Laplacian(DImage &output, const DImage &input, const DImage&
 
 		foo.reset();
 
-		#pragma omp for schedule(static)
+		#pragma omp for
 		for(int i=0;i<height-1;i++)
 			for(int j=0;j<width;j++)
 			{
@@ -1032,7 +1032,7 @@ double OpticalFlow::im2feature(DImage &imfeature, const DImage &im)
 		_FlowPrecision* data=imfeature.data();
 		#pragma omp parallel num_threads(GLOBAL_nThreads)
 		{
-			#pragma omp for schedule(static)
+			#pragma omp for
 			for(int i=0;i<height;i++)
 				for(int j=0;j<width;j++)
 				{
