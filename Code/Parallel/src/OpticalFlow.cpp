@@ -385,7 +385,7 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 			{
 				#pragma omp parallel num_threads(GLOBAL_nThreads)
 				{
-					#pragma omp for schedule(static)
+					#pragma omp for
 					for(int i=0;i<nPixels;i++)
 						for(int k=0;k<nChannels;k++)
 						{
@@ -468,7 +468,7 @@ void OpticalFlow::SmoothFlowSOR(const DImage &Im1, const DImage &Im2, DImage &wa
 			start_time=timer();
 			#pragma omp parallel num_threads(nCores)
 			{
-				#pragma omp for schedule(static)
+				#pragma omp for
 				for(int k = 0; k<nSORIterations; k++)
 						for(int i = 0; i<imHeight; i++)
 							for(int j = 0; j<imWidth; j++)
