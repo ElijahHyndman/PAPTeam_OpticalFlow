@@ -45,7 +45,7 @@ def TestRun(Progression='Default',ImagesPerCollection=3,pyramidLevels=3,threadPr
 
 
     # Total Progress bar: Calculate the total number of images that we will work with
-    totalImages=len(threadProgression)*Repetitions
+    totalImages=len(threadProgression)*len(pyramidLevels)*Repetitions
     #   Images per collection may be:
     #       - Specified number of Images or,
     #       - Entire arbitrarily large directory
@@ -71,23 +71,24 @@ def TestRun(Progression='Default',ImagesPerCollection=3,pyramidLevels=3,threadPr
             # For each Number of Threads
             for numCores in threadProgression:
                 print('+'*15,numCores,'threads','+'*15,'\n')
-                # For each Image Pair
-                for IMAGEPAIR in ImagePairs[:ImagesPerCollection]:
+                # For each Pyramid Height
+                for PYRAMIDHEIGHT in pyramidLevels:
+                    # For each Image
+                    for IMAGEPAIR in ImagePairs[:ImagesPerCollection]:
+                        # === DEBUG: Print Header
+                        progressString='Image ['+str(imageIndex)+'/'+str(totalImages)+']'
+                        print('['+IMAGEPAIR.asStorageString(' -> ',long=False)+'] P[',str(PYRAMIDHEIGHT),']', '='*10 , progressString, '='*10)
 
-                    # === DEBUG: Print Calculation Header
-                    progressString='Image ['+str(imageIndex)+'/'+str(totalImages)+']'
-                    print('['+IMAGEPAIR.asStorageString(' -> ',long=False)+']', '='*10 , progressString, '='*10)
+                        # === Perform calculation
+                        CalculateOpticalFlow(IMAGEPAIR,PYRAMIDHEIGHT,numCores,outputSuffix)
 
-                    # === Perform calculation
-                    CalculateOpticalFlow(IMAGEPAIR,pyramidLevels,numCores,outputSuffix)
-
-                    # === DEBUG: Print Calculation footer
-                    print( '=' * 60, '\n')
-                    imageIndex+=1
+                        # === DEBUG: Print footer
+                        print( '=' * 60, '\n')
+                        imageIndex+=1
     # == End Test Run
 
 
 # === Running Tests
 begin=time.perf_counter()
-TestRun(Progression='Final',ImagesPerCollection=10,pyramidLevels=6,threadProgression=(2,4,8,16,24),Repetitions=1,outputSuffix='_parallel')
+TestRun(Progression='Final',ImagesPerCollection=1,pyramidLevels=(2,4,8,15),threadProgression=(4,),Repetitions=1,outputSuffix='_parallel')
 print('Program Execution time: {:.2f}'.format(time.perf_counter()-begin))
