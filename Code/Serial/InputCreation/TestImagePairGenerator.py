@@ -53,7 +53,7 @@ class TestImagePairGenerator:
         self.PROJECT_PATH, self.PATH_TO_ME = os.getcwd().split('/Code')
         self.PATH_TO_ME='/Code'+self.PATH_TO_ME
         # Hard coded source folder names
-        self.SOURCE_DIRS=('images','images_MPI','images_Video')
+        self.SOURCE_DIRS=('images','images_MPI','images_Video','images_New')
         self.COLLECTION_KEYS=list() # Empty list
         self.COLLECTION_DICTIONARY=dict() # Empty Dictionary
         # Image Collections' paths are generated on start-up and not hard coded because

@@ -16,11 +16,13 @@ CollectionLevels={
     'Medium':'HoChiMinhTraffic_10FPS_800',
     'Heavy':'HoChiMinhTraffic_10FPS_1920'
 }
+FinalLevels=('HoChiMinhTraffic_10FPS_240','HoChiMinhTraffic_10FPS_480','HoChiMinhTraffic_10FPS_960','HoChiMinhTraffic_10FPS_1920')
 CollectionProgressions={
     'Light':(CollectionLevels['Light'],),
     'Default':(CollectionLevels['Medium'],),
     'Heavy':(CollectionLevels['Heavy'],),
-    'Full':(CollectionLevels['Light'],CollectionLevels['Medium'],CollectionLevels['Heavy'])
+    'Full':(CollectionLevels['Light'],CollectionLevels['Medium'],CollectionLevels['Heavy']),
+    'Final':FinalLevels
 }
 
 
@@ -86,5 +88,5 @@ def TestRun(Progression='Default',ImagesPerCollection=3,pyramidLevels=(6,),Repet
 
 # === Running Tests
 begin=time.perf_counter()
-TestRun(Progression='Full',ImagesPerCollection=1,pyramidLevels=(1,2,4,8,16),Repetitions=1,outputSuffix='_serial')
+TestRun(Progression='Final',ImagesPerCollection=1,pyramidLevels=(2,4),Repetitions=30,outputSuffix='_serial')
 print('Program Execution time: {:.2f}'.format(time.perf_counter()-begin))

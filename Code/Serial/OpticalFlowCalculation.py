@@ -121,6 +121,7 @@ def generateOutput(imagePair, nLevels, flow, imDimensions, timingDictionary, opt
     Image_OutputFile=Frame_Base+Image_OutputExtension
     OUTPUT_IMAGEFILE_PATH=os.path.join(Image_outputPath,Image_OutputFile)
 
+    # Timing File
     if (0):
         # Timing File Name (based on pyramid height, thread number)
         Timing_OutputFile=Collection_outputFolderName+'_P{}.txt'.format(nLevels)
@@ -166,6 +167,7 @@ def generateOutputFlowImageFile(outputImagePath,flow, imDimensions):
 
 def generateOutputTimingFile(outputFilePath, timingDictionary, lineStarter=''):
     # We will write the header first, if the file does not exist yet
+    print('printing output',outputFilePath)
     writeHeader= not os.path.exists(outputFilePath)
     f = open(outputFilePath,'a')
     delimiter='\t'
