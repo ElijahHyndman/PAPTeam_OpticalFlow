@@ -88,5 +88,5 @@ def TestRun(Progression='Default',ImagesPerCollection=3,pyramidLevels=(6,),Repet
 
 # === Running Tests
 begin=time.perf_counter()
-TestRun(Progression='Final',ImagesPerCollection=1,pyramidLevels=(2,4),Repetitions=30,outputSuffix='_serial')
+TestRun(Progression='Final',ImagesPerCollection=1,pyramidLevels=(2,4,8,15),Repetitions=1,outputSuffix='_serial')
 print('Program Execution time: {:.2f}'.format(time.perf_counter()-begin))
