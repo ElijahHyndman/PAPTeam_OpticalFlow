@@ -938,15 +938,15 @@ void OpticalFlow::Coarse2FineFlow(map<string,string>* TIMING_PROFILE, DImage &vx
 	// === Output: Store the values
 	GLOBAL_timingMap->insert( make_pair("Total C++ Execution",to_string( TotalExecution )) );
 					//GLOBAL_timingMap->insert( make_pair("Total Flow Calculation",to_string( duration_total_flow )) );
-	GLOBAL_timingMap->insert( make_pair("Construction",to_string( Construction )) );
-	GLOBAL_timingMap->insert( make_pair("Allocation",to_string( Allocation )) );
-	GLOBAL_timingMap->insert( make_pair("Phase1_Generate",to_string( Phase1_Generate )) );
-	GLOBAL_timingMap->insert( make_pair("Phase2_Derivatives",to_string( Phase2_Derivatives )) );
-	GLOBAL_timingMap->insert( make_pair("Phase3_PsiData",to_string( Phase3_PsiData )) );
-	GLOBAL_timingMap->insert( make_pair("Phase4_LinearSystem",to_string( Phase4_LinearSystem )) );
-	GLOBAL_timingMap->insert( make_pair("Phase5_SOR",to_string( Phase5_SOR )) );
-	GLOBAL_timingMap->insert( make_pair("Phase6_Update",to_string( Phase6_Update )) );
-	GLOBAL_timingMap->insert( make_pair("PostProcessing",to_string( PostProcessing )) );
+	// GLOBAL_timingMap->insert( make_pair("Construction",to_string( Construction )) );
+	// GLOBAL_timingMap->insert( make_pair("Allocation",to_string( Allocation )) );
+	// GLOBAL_timingMap->insert( make_pair("Phase1_Generate",to_string( Phase1_Generate )) );
+	// GLOBAL_timingMap->insert( make_pair("Phase2_Derivatives",to_string( Phase2_Derivatives )) );
+	// GLOBAL_timingMap->insert( make_pair("Phase3_PsiData",to_string( Phase3_PsiData )) );
+	// GLOBAL_timingMap->insert( make_pair("Phase4_LinearSystem",to_string( Phase4_LinearSystem )) );
+	// GLOBAL_timingMap->insert( make_pair("Phase5_SOR",to_string( Phase5_SOR )) );
+	// GLOBAL_timingMap->insert( make_pair("Phase6_Update",to_string( Phase6_Update )) );
+	// GLOBAL_timingMap->insert( make_pair("PostProcessing",to_string( PostProcessing )) );
 
 
 	// GLOBAL_timingMap->insert( make_pair("_Total getDxs",to_string( TotalGetDxs )) );

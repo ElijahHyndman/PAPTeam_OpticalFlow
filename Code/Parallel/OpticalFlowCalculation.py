@@ -132,7 +132,7 @@ def generateOutput(imagePair, nLevels, nCores, flow, imDimensions, timingDiction
         Timing_OutputFileName='UniversalTiming.txt'
     OUTPUT_TIMINGFILE_PATH=os.path.join(outputPath,Timing_OutputFileName)
     # Line starter for the timing file
-    lineStarter=imagePair.BEFORE.IMAGE_PARENT.split('_')[-1]+' pixels '+str(nCores)+' threads\t'
+    lineStarter=imagePair.BEFORE.IMAGE_PARENT.split('_')[-1]+' pixels '+str(nCores)+' threads'+ str(nLevels)+' pyramid\t'
 
     # === Create the final output files
     generateOutputFlowImageFile(OUTPUT_IMAGEFILE_PATH,flow,imDimensions)
